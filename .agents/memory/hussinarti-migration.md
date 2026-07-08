@@ -1,33 +1,30 @@
 ---
 name: Hussinarti Migration
-description: Arabic school management platform migrated from zip to Replit monorepo — architecture decisions, env var requirements, known constraints
+description: Arabic school management platform migrated from zip to Replit monorepo — Manus OAuth removed, replaced with local email/password auth
 ---
 
 ## Overview
 Full-stack Arabic school management app. Frontend: React+Vite+Wouter+tRPC. Backend: Express 5+tRPC+Drizzle+PostgreSQL.
 
-## Env Vars Required for Full Login
-- `JWT_SECRET` (or falls back to `SESSION_SECRET`) — JWT signing
-- `VITE_APP_ID` — Manus OAuth app ID (public, VITE_ prefix)
-- `VITE_OAUTH_PORTAL_URL` — Manus OAuth portal URL (public, VITE_ prefix)
-- `OAUTH_SERVER_URL` — Manus OAuth server URL (backend)
-- `OWNER_OPEN_ID` — OpenID of the admin/owner (auto-assigns admin role)
-- `BUILT_IN_FORGE_API_URL` / `BUILT_IN_FORGE_API_KEY` — optional, for file storage (book uploads)
-
-## Key Decisions
-- `JWT_SECRET` falls back to `SESSION_SECRET` (already provisioned)
-- `updateUserRole` restricted: only "user" → "student"/"teacher" — admin is never self-assignable
-- Admin role auto-assigned when `openId === OWNER_OPEN_ID` in sdk.ts
-- TypeScript project references removed from api-server tsconfig (incompatible with tsx monorepo); uses `paths` + `include` instead
-- `@server/*` path alias in hussinarti tsconfig resolves api-server types for `import type { AppRouter }` (type-only, stripped by Vite at runtime)
-
-## Express 5 Compatibility
-- Wildcard routes must use named params: `/*path` not `/*`
-- `req.params.path` is `string[]` in Express 5 — use `Array.isArray(raw) ? raw.join("/") : raw`
-- CORS: restricted to localhost + *.replit.dev + *.repl.co with credentials:true
-
-**Why:** Express 5 uses path-to-regexp v8 which throws on unnamed wildcards.
+## Auth System (local — NO external OAuth)
+- Email + password (bcryptjs) with JWT session tokens (jose)
+- Cookie: `app_session_id` (HttpOnly, SameSite=None, Secure)
+- JWT secret: `SESSION_SECRET` env var (already provisioned) OR `JWT_SECRET`
+- First user to register → auto-assigned `admin` role
+- `updateUserRole` (self): only `user` → `student`/`teacher` (no admin self-assign)
+- `admin.setUserRole`: admin can change any user's role to anything
+- `admin.createUser`: admin creates users directly
 
 ## DB Schema
-5 tables: users, results, books, calendarEvents, notifications
-2 enums: user_role (user/admin/student/teacher), notification_recipient_type (all/students/specific)
+5 tables: users (has `password` VARCHAR column), results, books, calendarEvents, notifications
+2 enums: user_role (user/admin/student/teacher), notification_recipient_type
+
+## Key Architecture
+- tsconfig in api-server uses `paths` + `include` for @workspace/db (no project references — incompatible with tsx)
+- `@server/*` alias in hussinarti tsconfig resolves api-server types for `import type { AppRouter }` (type-only, stripped by Vite)
+- Express 5 wildcard: `/*path` with `Array.isArray(raw) ? raw.join("/") : raw`
+- CORS restricted to localhost + *.replit.dev + *.repl.co with credentials:true
+
+## Manus Removal
+Deleted: sdk.ts, oauth.ts, storageProxy.ts, ManusDialog.tsx
+Removed env vars: VITE_APP_ID, VITE_OAUTH_PORTAL_URL, OAUTH_SERVER_URL, OWNER_OPEN_ID, BUILT_IN_FORGE_API_URL, BUILT_IN_FORGE_API_KEY, axios package

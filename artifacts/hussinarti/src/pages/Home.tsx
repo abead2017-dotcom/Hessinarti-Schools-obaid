@@ -1,16 +1,14 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { BookOpen, Users, Calendar, Bell, GraduationCap } from "lucide-react";
+import { BookOpen, Calendar, Bell, GraduationCap } from "lucide-react";
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Home() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) return;
+    if (loading || !user) return;
     if (user.role === "admin") setLocation("/dashboard/admin");
     else if (user.role === "teacher") setLocation("/dashboard/teacher");
     else if (user.role === "student") setLocation("/dashboard/student");
@@ -26,7 +24,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50" dir="rtl">
-      {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -35,16 +32,21 @@ export default function Home() {
             </div>
             <h1 className="text-xl font-bold text-gray-800">مدارس حسينارتي</h1>
           </div>
-          <a
-            href={getLoginUrl()}
-            className="bg-primary text-white px-5 py-2 rounded-lg font-semibold hover:opacity-90 transition text-sm"
-          >
-            {loading ? "..." : user ? "لوحة التحكم" : "تسجيل الدخول"}
-          </a>
+          <div className="flex items-center gap-3">
+            <Link href="/login">
+              <button className="text-gray-600 hover:text-primary font-medium text-sm transition">
+                تسجيل الدخول
+              </button>
+            </Link>
+            <Link href="/register">
+              <button className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:opacity-90 transition text-sm">
+                إنشاء حساب
+              </button>
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
           <GraduationCap className="w-10 h-10 text-white" />
@@ -55,15 +57,13 @@ export default function Home() {
         <p className="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
           نظام متكامل لإدارة الطلاب والمعلمين والنتائج والمواد الدراسية
         </p>
-        <a
-          href={getLoginUrl()}
-          className="inline-block bg-primary text-white px-8 py-3 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-md"
-        >
-          ابدأ الآن
-        </a>
+        <Link href="/register">
+          <button className="inline-block bg-primary text-white px-8 py-3 rounded-xl font-bold text-lg hover:opacity-90 transition shadow-md">
+            ابدأ الآن مجاناً
+          </button>
+        </Link>
       </section>
 
-      {/* Features */}
       <section className="container mx-auto px-4 pb-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map(({ icon: Icon, title, desc }) => (

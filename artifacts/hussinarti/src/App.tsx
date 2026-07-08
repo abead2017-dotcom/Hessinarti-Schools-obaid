@@ -4,6 +4,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 import Results from "./pages/Results";
 import Books from "./pages/Books";
 import Calendar from "./pages/Calendar";
@@ -18,6 +20,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route path="/role-selection" component={RoleSelection} />
       <Route path="/dashboard/student" component={StudentDashboard} />
       <Route path="/dashboard/teacher" component={TeacherDashboard} />
@@ -36,7 +40,7 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <Toaster />
+          <Toaster richColors position="top-center" dir="rtl" />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
