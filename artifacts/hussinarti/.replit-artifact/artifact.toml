@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "مدارس حسينارتي"
+version = "1.0.0"
+id = "artifacts/hussinarti"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22453
+
+[services.development]
+run = "pnpm --filter @workspace/hussinarti run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hussinarti", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/hussinarti/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22453"
+BASE_PATH = "/"

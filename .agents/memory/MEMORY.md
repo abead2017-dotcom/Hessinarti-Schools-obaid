@@ -1,0 +1,1 @@
+- [Hussinarti Migration](hussinarti-migration.md) — مشروع مدارس عربي منقول من زيب إلى Replit، tRPC + Express 5 + PostgreSQL، معلومات بنية المشروع وقرارات التصميم
