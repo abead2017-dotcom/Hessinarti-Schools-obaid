@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { BarChart3, BookOpen, Calendar, Bell, LogOut, Plus, Users, Loader2 } from "lucide-react";
+import { BarChart3, BookOpen, Calendar, Bell, LogOut, Plus, Users, Loader2, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,7 +22,9 @@ export default function AdminDashboard() {
   const { data: notifications } = trpc.notifications.getNotifications.useQuery();
   const { data: allUsers, refetch: refetchUsers } = trpc.admin.getUsers.useQuery(undefined, { enabled: activeTab === "users" });
 
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<number | null>(null);
   const setRole = trpc.admin.setUserRole.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم تغيير الدور"); } });
+  const deleteUser = trpc.admin.deleteUser.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم حذف المستخدم"); setConfirmDeleteUser(null); } });
   const createUser = trpc.admin.createUser.useMutation({
     onSuccess: () => { refetchUsers(); toast.success("تم إنشاء الحساب"); setNewUser({ name: "", email: "", password: "", role: "student" }); },
   });
@@ -155,6 +157,7 @@ export default function AdminDashboard() {
                     <th className="text-right py-2 px-3">البريد</th>
                     <th className="text-right py-2 px-3">الدور</th>
                     <th className="text-right py-2 px-3">تغيير الدور</th>
+                    <th className="py-2 px-3"></th>
                   </tr></thead>
                   <tbody>
                     {allUsers?.map((u: any) => (
@@ -180,8 +183,30 @@ export default function AdminDashboard() {
                             </select>
                           )}
                         </td>
+                        <td className="py-3 px-3">
+                          {u.id !== user.id && (
+                            confirmDeleteUser === u.id ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => deleteUser.mutate({ userId: u.id })}
+                                  disabled={deleteUser.isPending}
+                                  className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50">
+                                  تأكيد
+                                </button>
+                                <button onClick={() => setConfirmDeleteUser(null)}
+                                  className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-300">
+                                  إلغاء
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setConfirmDeleteUser(u.id)}
+                                className="text-gray-300 hover:text-red-500 transition p-1 rounded">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )
+                          )}
+                        </td>
                       </tr>
-                    )) ?? <tr><td colSpan={4} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
+                    )) ?? <tr><td colSpan={5} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
                   </tbody>
                 </table>
               </div>

@@ -76,3 +76,24 @@ export async function getNotifications() {
 export async function addNotification(notification: typeof notifications.$inferInsert) {
   return db.insert(notifications).values(notification);
 }
+
+export async function deleteNotification(id: number) {
+  return db.delete(notifications).where(eq(notifications.id, id));
+}
+
+// Delete helpers
+export async function deleteResult(id: number) {
+  return db.delete(results).where(eq(results.id, id));
+}
+
+export async function deleteBook(id: number) {
+  return db.delete(books).where(eq(books.id, id));
+}
+
+export async function deleteCalendarEvent(id: number) {
+  return db.delete(calendarEvents).where(eq(calendarEvents.id, id));
+}
+
+export async function deleteUser(id: number) {
+  return db.delete(users).where(eq(users.id, id));
+}

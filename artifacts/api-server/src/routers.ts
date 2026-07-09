@@ -6,15 +6,20 @@ import {
   getStudentResults,
   getAllResults,
   addResult,
+  deleteResult,
   getBooks,
   addBook,
+  deleteBook,
   getCalendarEvents,
   addCalendarEvent,
+  deleteCalendarEvent,
   getNotifications,
   addNotification,
+  deleteNotification,
+  deleteUser,
 } from "./db.js";
 import { TRPCError } from "@trpc/server";
-import { db, users } from "@workspace/db";
+import { db, users, books } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword, createSessionToken } from "./auth.js";
 import { randomUUID } from "crypto";
@@ -161,6 +166,16 @@ export const appRouter = router({
         return { success: true } as const;
       }),
 
+    deleteUser: adminProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        if (input.userId === ctx.user!.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك حذف حسابك الخاص" });
+        }
+        await deleteUser(input.userId);
+        return { success: true } as const;
+      }),
+
     createUser: adminProcedure
       .input(
         z.object({
@@ -206,6 +221,9 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input }) => addResult(input)),
+    deleteResult: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => deleteResult(input.id)),
   }),
 
   books: router({
@@ -224,6 +242,17 @@ export const appRouter = router({
         }),
       )
       .mutation(async ({ input, ctx }) => addBook({ ...input, uploadedBy: ctx.user!.id })),
+    deleteBook: teacherOrAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        // Admins can delete any book; teachers can only delete their own uploads
+        if (ctx.user!.role !== "admin") {
+          const [found] = await db.select({ uploadedBy: books.uploadedBy }).from(books).where(eq(books.id, input.id)).limit(1);
+          if (!found) throw new TRPCError({ code: "NOT_FOUND", message: "الكتاب غير موجود" });
+          if (found.uploadedBy !== ctx.user!.id) throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك حذف كتاب رفعه شخص آخر" });
+        }
+        return deleteBook(input.id);
+      }),
   }),
 
   calendar: router({
@@ -241,6 +270,9 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) =>
         addCalendarEvent({ ...input, createdBy: ctx.user!.id }),
       ),
+    deleteEvent: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => deleteCalendarEvent(input.id)),
   }),
 
   notifications: router({
@@ -257,6 +289,9 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) =>
         addNotification({ ...input, sentBy: ctx.user!.id }),
       ),
+    deleteNotification: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => deleteNotification(input.id)),
   }),
 });
 

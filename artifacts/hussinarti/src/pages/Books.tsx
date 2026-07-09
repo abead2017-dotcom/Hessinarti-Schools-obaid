@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, BookOpen, Download, Plus, Loader2 } from "lucide-react";
+import { ArrowRight, BookOpen, Download, Plus, Loader2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,13 +11,19 @@ import { toast } from "sonner";
 export default function Books() {
   const { user, loading } = useAuth({ redirectOnUnauthenticated: true });
   const canUpload = user?.role === "admin" || user?.role === "teacher";
+  const isAdmin = user?.role === "admin";
 
   const { data: books, isLoading, refetch } = trpc.books.getBooks.useQuery();
   const uploadBook = trpc.books.uploadBook.useMutation({
     onSuccess: () => { refetch(); toast.success("تم رفع الكتاب"); resetForm(); },
   });
+  const deleteBook = trpc.books.deleteBook.useMutation({
+    onSuccess: () => { refetch(); toast.success("تم حذف الكتاب"); setConfirmDelete(null); },
+  });
+
   const [form, setForm] = useState({ title: "", subject: "", grade: "", fileUrl: "", fileKey: "", description: "" });
   const resetForm = () => setForm({ title: "", subject: "", grade: "", fileUrl: "", fileKey: "", description: "" });
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -65,17 +71,41 @@ export default function Books() {
                     <div className="bg-primary/10 p-3 rounded-lg flex-shrink-0">
                       <BookOpen className="w-5 h-5 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-gray-800">{b.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-800 truncate">{b.title}</h3>
                       <p className="text-sm text-gray-500">{b.subject} — {b.grade}</p>
                     </div>
+                    {(isAdmin || b.uploadedBy === user?.id) && (
+                      <button
+                        onClick={() => setConfirmDelete(confirmDelete === b.id ? null : b.id)}
+                        className="text-gray-300 hover:text-red-500 transition flex-shrink-0 p-1 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
+
                   {b.description && <p className="text-sm text-gray-600 mb-3">{b.description}</p>}
-                  <a href={b.fileUrl} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Download className="w-4 h-4 ml-2" /> تحميل
-                    </Button>
-                  </a>
+
+                  {confirmDelete === b.id ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => deleteBook.mutate({ id: b.id })}
+                        disabled={deleteBook.isPending}
+                        className="flex-1 text-sm bg-red-500 text-white py-1.5 rounded-md hover:bg-red-600 disabled:opacity-50">
+                        {deleteBook.isPending ? "جاري الحذف..." : "تأكيد الحذف"}
+                      </button>
+                      <button onClick={() => setConfirmDelete(null)}
+                        className="flex-1 text-sm bg-gray-100 text-gray-700 py-1.5 rounded-md hover:bg-gray-200">
+                        إلغاء
+                      </button>
+                    </div>
+                  ) : (
+                    <a href={b.fileUrl} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Download className="w-4 h-4 ml-2" /> تحميل
+                      </Button>
+                    </a>
+                  )}
                 </Card>
               ))
             : <p className="col-span-3 text-center text-gray-500 py-12">لا توجد كتب متاحة</p>}

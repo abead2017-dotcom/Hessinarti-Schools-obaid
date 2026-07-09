@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Plus, GraduationCap, Loader2 } from "lucide-react";
+import { ArrowRight, Plus, GraduationCap, Loader2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,9 +16,11 @@ export default function Results() {
   const studentResults = trpc.results.getMyResults.useQuery(undefined, { enabled: isStudent });
   const allResults = trpc.results.getAllResults.useQuery(undefined, { enabled: isAdmin });
   const addResult = trpc.results.addResult.useMutation({ onSuccess: () => { allResults.refetch(); toast.success("تم رفع النتيجة"); resetForm(); } });
+  const deleteResult = trpc.results.deleteResult.useMutation({ onSuccess: () => { allResults.refetch(); toast.success("تم حذف النتيجة"); } });
 
   const [form, setForm] = useState({ studentId: "", subject: "", grade: "", score: "", semester: "", academicYear: "" });
   const resetForm = () => setForm({ studentId: "", subject: "", grade: "", score: "", semester: "", academicYear: "" });
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const results = isAdmin ? allResults.data : studentResults.data;
   const isLoading = isAdmin ? allResults.isLoading : studentResults.isLoading;
@@ -84,6 +86,7 @@ export default function Results() {
                       <th className="text-right py-2 px-3">النسبة</th>
                       <th className="text-right py-2 px-3">الفصل</th>
                       <th className="text-right py-2 px-3">العام</th>
+                      {isAdmin && <th className="py-2 px-3"></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -99,6 +102,23 @@ export default function Results() {
                         </td>
                         <td className="py-3 px-3 text-gray-600">{r.semester}</td>
                         <td className="py-3 px-3 text-gray-600">{r.academicYear}</td>
+                        {isAdmin && (
+                          <td className="py-3 px-3">
+                            {confirmDelete === r.id ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => { deleteResult.mutate({ id: r.id }); setConfirmDelete(null); }}
+                                  className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600">تأكيد</button>
+                                <button onClick={() => setConfirmDelete(null)}
+                                  className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">إلغاء</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => setConfirmDelete(r.id)}
+                                className="text-gray-400 hover:text-red-500 transition p-1 rounded">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

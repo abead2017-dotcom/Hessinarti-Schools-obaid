@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Bell, Plus, Loader2 } from "lucide-react";
+import { ArrowRight, Bell, Plus, Loader2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,8 +16,13 @@ export default function Notifications() {
   const send = trpc.notifications.sendNotification.useMutation({
     onSuccess: () => { refetch(); toast.success("تم إرسال الإشعار"); resetForm(); },
   });
+  const deleteNotification = trpc.notifications.deleteNotification.useMutation({
+    onSuccess: () => { refetch(); toast.success("تم حذف الإشعار"); setConfirmDelete(null); },
+  });
+
   const [form, setForm] = useState({ title: "", message: "", recipientType: "all" as "all" | "students" | "specific" });
   const resetForm = () => setForm({ title: "", message: "", recipientType: "all" });
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -71,7 +76,7 @@ export default function Notifications() {
                     <div className="bg-primary/10 p-2 rounded-lg flex-shrink-0">
                       <Bell className="w-5 h-5 text-primary" />
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-800 mb-1">{n.title}</h3>
                       <p className="text-gray-600 text-sm mb-2">{n.message}</p>
                       <div className="flex items-center gap-3">
@@ -81,6 +86,28 @@ export default function Notifications() {
                         </span>
                       </div>
                     </div>
+                    {isAdmin && (
+                      <div className="flex-shrink-0">
+                        {confirmDelete === n.id ? (
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => deleteNotification.mutate({ id: n.id })}
+                              disabled={deleteNotification.isPending}
+                              className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50 whitespace-nowrap">
+                              تأكيد
+                            </button>
+                            <button onClick={() => setConfirmDelete(null)}
+                              className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-300">
+                              إلغاء
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setConfirmDelete(n.id)}
+                            className="text-gray-300 hover:text-red-500 transition p-1 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))

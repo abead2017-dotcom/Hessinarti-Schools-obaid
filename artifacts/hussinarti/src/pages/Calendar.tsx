@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Calendar as CalendarIcon, Plus, Loader2 } from "lucide-react";
+import { ArrowRight, Calendar as CalendarIcon, Plus, Loader2, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -18,8 +18,13 @@ export default function Calendar() {
   const addEvent = trpc.calendar.addEvent.useMutation({
     onSuccess: () => { refetch(); toast.success("تم إضافة الفعالية"); resetForm(); },
   });
+  const deleteEvent = trpc.calendar.deleteEvent.useMutation({
+    onSuccess: () => { refetch(); toast.success("تم حذف الفعالية"); setConfirmDelete(null); },
+  });
+
   const [form, setForm] = useState({ title: "", description: "", startDate: "", endDate: "", eventType: "دراسي" });
   const resetForm = () => setForm({ title: "", description: "", startDate: "", endDate: "", eventType: "دراسي" });
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
@@ -63,18 +68,42 @@ export default function Calendar() {
           {isLoading ? <p className="text-center text-gray-400 py-12">جاري التحميل...</p>
             : events && events.length > 0
             ? events.map((e: any) => (
-                <Card key={e.id} className="p-5 flex items-start gap-4">
-                  <div className="bg-primary/10 p-3 rounded-lg flex-shrink-0 text-center min-w-[56px]">
-                    <p className="text-primary font-bold text-lg leading-none">{new Date(e.startDate).getDate()}</p>
-                    <p className="text-primary text-xs">{new Date(e.startDate).toLocaleDateString("ar-SA", { month: "short" })}</p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-gray-800">{e.title}</h3>
-                      <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">{e.eventType}</span>
+                <Card key={e.id} className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary/10 p-3 rounded-lg flex-shrink-0 text-center min-w-[56px]">
+                      <p className="text-primary font-bold text-lg leading-none">{new Date(e.startDate).getDate()}</p>
+                      <p className="text-primary text-xs">{new Date(e.startDate).toLocaleDateString("ar-SA", { month: "short" })}</p>
                     </div>
-                    {e.description && <p className="text-sm text-gray-600">{e.description}</p>}
-                    <p className="text-xs text-gray-400 mt-1">{new Date(e.startDate).toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-gray-800">{e.title}</h3>
+                        <span className="bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full flex-shrink-0">{e.eventType}</span>
+                      </div>
+                      {e.description && <p className="text-sm text-gray-600">{e.description}</p>}
+                      <p className="text-xs text-gray-400 mt-1">{new Date(e.startDate).toLocaleDateString("ar-SA", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex-shrink-0">
+                        {confirmDelete === e.id ? (
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => deleteEvent.mutate({ id: e.id })}
+                              disabled={deleteEvent.isPending}
+                              className="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 disabled:opacity-50 whitespace-nowrap">
+                              تأكيد
+                            </button>
+                            <button onClick={() => setConfirmDelete(null)}
+                              className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-300">
+                              إلغاء
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setConfirmDelete(e.id)}
+                            className="text-gray-300 hover:text-red-500 transition p-1 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))
