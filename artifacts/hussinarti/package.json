@@ -9,6 +9,13 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@workspace/object-storage-web": "workspace:*",
+    "@uppy/aws-s3": "^5.0.0",
+    "@uppy/core": "^5.0.0",
+    "@uppy/dashboard": "^5.0.0",
+    "@uppy/react": "^5.0.0"
+  },
   "devDependencies": {
     "@trpc/client": "^11.6.0",
     "@trpc/react-query": "^11.6.0",
