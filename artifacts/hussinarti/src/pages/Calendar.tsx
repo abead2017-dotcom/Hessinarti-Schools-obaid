@@ -14,7 +14,9 @@ export default function Calendar() {
   const { user, loading } = useAuth({ redirectOnUnauthenticated: true });
   const isAdmin = user?.role === "admin";
 
-  const { data: events, isLoading, refetch } = trpc.calendar.getEvents.useQuery();
+  const { data: events, isLoading, refetch } = trpc.calendar.getEvents.useQuery(
+    user?.schoolSection ? { schoolSection: user.schoolSection } : undefined,
+  );
   const addEvent = trpc.calendar.addEvent.useMutation({
     onSuccess: () => { refetch(); toast.success("تم إضافة الفعالية"); resetForm(); },
   });

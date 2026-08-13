@@ -1,5 +1,5 @@
 import { db, users, results, books, calendarEvents, notifications } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, isNull } from "drizzle-orm";
 import type { InsertUser } from "@workspace/db";
 
 export async function upsertUserRecord(user: InsertUser): Promise<void> {
@@ -38,21 +38,20 @@ export async function addResult(result: typeof results.$inferInsert) {
 }
 
 // Books
-export async function getBooks(grade?: string, subject?: string) {
-  if (grade && subject) {
-    return db
-      .select()
-      .from(books)
-      .where(and(eq(books.grade, grade), eq(books.subject, subject)))
-      .orderBy(desc(books.createdAt));
-  }
-  if (grade) {
-    return db.select().from(books).where(eq(books.grade, grade)).orderBy(desc(books.createdAt));
-  }
-  if (subject) {
-    return db.select().from(books).where(eq(books.subject, subject)).orderBy(desc(books.createdAt));
-  }
-  return db.select().from(books).orderBy(desc(books.createdAt));
+export async function getBooks(
+  grade?: string,
+  subject?: string,
+  schoolSection?: "primary" | "middle",
+) {
+  const filters = [];
+  if (grade) filters.push(eq(books.grade, grade));
+  if (subject) filters.push(eq(books.subject, subject));
+  if (schoolSection) filters.push(or(eq(books.schoolSection, schoolSection), isNull(books.schoolSection)));
+  return db
+    .select()
+    .from(books)
+    .where(filters.length ? and(...filters) : undefined)
+    .orderBy(desc(books.createdAt));
 }
 
 export async function addBook(book: typeof books.$inferInsert) {
@@ -60,8 +59,14 @@ export async function addBook(book: typeof books.$inferInsert) {
 }
 
 // Calendar
-export async function getCalendarEvents() {
-  return db.select().from(calendarEvents).orderBy(calendarEvents.startDate);
+export async function getCalendarEvents(schoolSection?: "primary" | "middle") {
+  return db
+    .select()
+    .from(calendarEvents)
+    .where(schoolSection
+      ? or(eq(calendarEvents.schoolSection, schoolSection), isNull(calendarEvents.schoolSection))
+      : undefined)
+    .orderBy(calendarEvents.startDate);
 }
 
 export async function addCalendarEvent(event: typeof calendarEvents.$inferInsert) {
@@ -69,8 +74,14 @@ export async function addCalendarEvent(event: typeof calendarEvents.$inferInsert
 }
 
 // Notifications
-export async function getNotifications() {
-  return db.select().from(notifications).orderBy(desc(notifications.createdAt));
+export async function getNotifications(schoolSection?: "primary" | "middle") {
+  return db
+    .select()
+    .from(notifications)
+    .where(schoolSection
+      ? or(eq(notifications.schoolSection, schoolSection), isNull(notifications.schoolSection))
+      : undefined)
+    .orderBy(desc(notifications.createdAt));
 }
 
 export async function addNotification(notification: typeof notifications.$inferInsert) {

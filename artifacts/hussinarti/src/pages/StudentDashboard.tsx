@@ -9,7 +9,9 @@ export default function StudentDashboard() {
   const { user, logout, loading } = useAuth({ redirectOnUnauthenticated: true });
   const [, setLocation] = useLocation();
   const { data: results, isLoading: resultsLoading } = trpc.results.getMyResults.useQuery();
-  const { data: books, isLoading: booksLoading } = trpc.books.getBooks.useQuery();
+  const { data: books, isLoading: booksLoading } = trpc.books.getBooks.useQuery(
+    user?.schoolSection ? { schoolSection: user.schoolSection } : undefined,
+  );
   const { data: notifications } = trpc.notifications.getNotifications.useQuery();
 
   const handleLogout = async () => { await logout(); setLocation("/"); };
@@ -31,6 +33,13 @@ export default function StudentDashboard() {
           <div>
             <h1 className="text-2xl font-bold">لوحة تحكم الطالب</h1>
             <p className="text-blue-100 mt-1">مرحباً {user.name}</p>
+            <p className="text-blue-100 text-sm mt-1">
+              رقم الطالب: <span className="font-bold">{user.studentNumber ?? "—"}</span>
+              {" · "}
+              {user.schoolSection === "primary" ? "الأساسي" : user.schoolSection === "middle" ? "المتوسط" : "—"}
+              {" · الصف "}
+              {user.classLevel ?? "—"}
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <span className="bg-blue-500 px-3 py-1 rounded-full text-sm">طالب</span>

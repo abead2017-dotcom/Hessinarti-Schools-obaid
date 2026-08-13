@@ -84,7 +84,7 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
     if (response.body) {
-      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+      Readable.fromWeb(response.body as any).pipe(res);
     } else { res.end(); }
   } catch (error) {
     req.log.error({ err: error }, "Error serving public object");
@@ -109,7 +109,7 @@ router.get("/storage/objects/*path", async (req: Request, res: Response) => {
     res.status(response.status);
     response.headers.forEach((value, key) => res.setHeader(key, value));
     if (response.body) {
-      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+      Readable.fromWeb(response.body as any).pipe(res);
     } else { res.end(); }
   } catch (error) {
     if (error instanceof ObjectNotFoundError) {

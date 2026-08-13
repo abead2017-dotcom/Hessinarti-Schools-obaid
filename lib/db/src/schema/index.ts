@@ -1,7 +1,8 @@
-import { integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { integer, pgEnum, pgTable, serial, text, timestamp, varchar, unique } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["user", "admin", "student", "teacher"]);
 export const notificationRecipientEnum = pgEnum("notification_recipient_type", ["all", "students", "specific"]);
+export const schoolSectionEnum = pgEnum("school_section", ["primary", "middle"]);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -12,10 +13,15 @@ export const users = pgTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: userRoleEnum("role").default("user").notNull(),
   studentId: varchar("studentId", { length: 64 }),
+  studentNumber: varchar("studentNumber", { length: 32 }),
+  schoolSection: schoolSectionEnum("schoolSection"),
+  classLevel: integer("classLevel"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
+}, (table) => ({
+  studentNumberUnique: unique("users_student_number_unique").on(table.studentNumber),
+}));
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -23,6 +29,8 @@ export type InsertUser = typeof users.$inferInsert;
 export const results = pgTable("results", {
   id: serial("id").primaryKey(),
   studentId: integer("studentId").notNull(),
+  schoolSection: schoolSectionEnum("schoolSection"),
+  classLevel: integer("classLevel"),
   subject: varchar("subject", { length: 255 }).notNull(),
   grade: varchar("grade", { length: 10 }).notNull(),
   score: integer("score"),
@@ -40,6 +48,8 @@ export const books = pgTable("books", {
   title: varchar("title", { length: 255 }).notNull(),
   subject: varchar("subject", { length: 255 }).notNull(),
   grade: varchar("grade", { length: 50 }).notNull(),
+  schoolSection: schoolSectionEnum("schoolSection"),
+  classLevel: integer("classLevel"),
   fileUrl: text("fileUrl").notNull(),
   fileKey: varchar("fileKey", { length: 255 }).notNull(),
   uploadedBy: integer("uploadedBy").notNull(),
@@ -58,6 +68,7 @@ export const calendarEvents = pgTable("calendarEvents", {
   startDate: timestamp("startDate").notNull(),
   endDate: timestamp("endDate"),
   eventType: varchar("eventType", { length: 50 }).notNull(),
+  schoolSection: schoolSectionEnum("schoolSection"),
   createdBy: integer("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -72,6 +83,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   recipientType: notificationRecipientEnum("recipientType").notNull(),
   recipientIds: text("recipientIds"),
+  schoolSection: schoolSectionEnum("schoolSection"),
   sentBy: integer("sentBy").notNull(),
   isRead: integer("isRead").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

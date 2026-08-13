@@ -24,6 +24,24 @@ import { eq } from "drizzle-orm";
 import { hashPassword, verifyPassword, createSessionToken } from "./auth.js";
 import { randomUUID } from "crypto";
 
+const schoolSectionSchema = z.enum(["primary", "middle"]);
+
+function validateClassLevel(section: "primary" | "middle", classLevel: number) {
+  const max = section === "primary" ? 6 : 3;
+  if (!Number.isInteger(classLevel) || classLevel < 1 || classLevel > max) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: section === "primary"
+        ? "الصف الأساسي يجب أن يكون من الأول إلى السادس"
+        : "الصف المتوسط يجب أن يكون من الأول إلى الثالث",
+    });
+  }
+}
+
+function studentNumberForUser(userId: number) {
+  return `STU-${String(userId).padStart(6, "0")}`;
+}
+
 const teacherOrAdminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   if (ctx.user!.role !== "admin" && ctx.user!.role !== "teacher") {
     throw new TRPCError({ code: "FORBIDDEN", message: "يجب أن تكون معلماً أو مديراً" });
@@ -122,13 +140,34 @@ export const appRouter = router({
     }),
 
     updateUserRole: protectedProcedure
-      .input(z.object({ role: z.enum(["student", "teacher"]) }))
+      .input(z.object({
+        role: z.enum(["student", "teacher"]),
+        schoolSection: schoolSectionSchema.optional(),
+        classLevel: z.number().int().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         if (ctx.user!.role !== "user") {
           throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن تغيير الدور بعد تعيينه" });
         }
-        await db.update(users).set({ role: input.role }).where(eq(users.id, ctx.user!.id));
-        return { ...ctx.user!, role: input.role };
+        if (input.role === "student") {
+          if (!input.schoolSection || input.classLevel === undefined) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "اختر القسم والصف الدراسي" });
+          }
+          validateClassLevel(input.schoolSection, input.classLevel);
+        }
+        await db.update(users).set({
+          role: input.role,
+          schoolSection: input.schoolSection ?? null,
+          classLevel: input.role === "student" ? input.classLevel ?? null : null,
+          studentNumber: input.role === "student" ? studentNumberForUser(ctx.user!.id) : null,
+        }).where(eq(users.id, ctx.user!.id));
+        return {
+          ...ctx.user!,
+          role: input.role,
+          schoolSection: input.schoolSection ?? null,
+          classLevel: input.role === "student" ? input.classLevel ?? null : null,
+          studentNumber: input.role === "student" ? studentNumberForUser(ctx.user!.id) : null,
+        };
       }),
 
     changePassword: protectedProcedure
@@ -154,15 +193,34 @@ export const appRouter = router({
       const allUsers = await db.select({
         id: users.id, name: users.name, email: users.email,
         role: users.role, loginMethod: users.loginMethod,
+        studentNumber: users.studentNumber, schoolSection: users.schoolSection, classLevel: users.classLevel,
         createdAt: users.createdAt, lastSignedIn: users.lastSignedIn,
       }).from(users);
       return allUsers;
     }),
 
     setUserRole: adminProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["user", "student", "teacher", "admin"]) }))
+      .input(z.object({
+        userId: z.number(),
+        role: z.enum(["user", "student", "teacher", "admin"]),
+        schoolSection: schoolSectionSchema.optional(),
+        classLevel: z.number().int().optional(),
+      }))
       .mutation(async ({ input }) => {
-        await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
+        if (input.role === "student") {
+          if (!input.schoolSection || input.classLevel === undefined) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "اختر القسم والصف الدراسي للطالب" });
+          }
+          validateClassLevel(input.schoolSection, input.classLevel);
+        }
+        const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).limit(1);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "المستخدم غير موجود" });
+        await db.update(users).set({
+          role: input.role,
+          schoolSection: input.schoolSection ?? null,
+          classLevel: input.role === "student" ? input.classLevel ?? null : null,
+          studentNumber: input.role === "student" ? studentNumberForUser(input.userId) : null,
+        }).where(eq(users.id, input.userId));
         return { success: true } as const;
       }),
 
@@ -183,11 +241,19 @@ export const appRouter = router({
           email: z.string().email(),
           password: z.string().min(8),
           role: z.enum(["user", "student", "teacher", "admin"]),
+          schoolSection: schoolSectionSchema.optional(),
+          classLevel: z.number().int().optional(),
         }),
       )
       .mutation(async ({ input }) => {
         const existing = await db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).limit(1);
         if (existing.length > 0) throw new TRPCError({ code: "CONFLICT", message: "البريد الإلكتروني مستخدم بالفعل" });
+        if (input.role === "student") {
+          if (!input.schoolSection || input.classLevel === undefined) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "اختر القسم والصف الدراسي للطالب" });
+          }
+          validateClassLevel(input.schoolSection, input.classLevel);
+        }
         const hash = await hashPassword(input.password);
         const [user] = await db.insert(users).values({
           openId: `local-${randomUUID()}`,
@@ -196,8 +262,18 @@ export const appRouter = router({
           password: hash,
           loginMethod: "email",
           role: input.role,
+          schoolSection: input.schoolSection ?? null,
+          classLevel: input.role === "student" ? input.classLevel ?? null : null,
         }).returning({ id: users.id, name: users.name, email: users.email, role: users.role });
-        return user;
+        if (input.role === "student") {
+          await db.update(users)
+            .set({ studentNumber: studentNumberForUser(user.id) })
+            .where(eq(users.id, user.id));
+        }
+        return {
+          ...user,
+          studentNumber: input.role === "student" ? studentNumberForUser(user.id) : null,
+        };
       }),
   }),
 
@@ -228,8 +304,12 @@ export const appRouter = router({
 
   books: router({
     getBooks: publicProcedure
-      .input(z.object({ grade: z.string().optional(), subject: z.string().optional() }).optional())
-      .query(async ({ input }) => getBooks(input?.grade, input?.subject)),
+      .input(z.object({
+        grade: z.string().optional(),
+        subject: z.string().optional(),
+        schoolSection: schoolSectionSchema.optional(),
+      }).optional())
+      .query(async ({ input }) => getBooks(input?.grade, input?.subject, input?.schoolSection)),
     uploadBook: teacherOrAdminProcedure
       .input(
         z.object({
@@ -239,9 +319,16 @@ export const appRouter = router({
           fileUrl: z.string().url("رابط غير صحيح"),
           fileKey: z.string(),
           description: z.string().optional(),
+          schoolSection: schoolSectionSchema.optional(),
+          classLevel: z.number().int().optional(),
         }),
       )
-      .mutation(async ({ input, ctx }) => addBook({ ...input, uploadedBy: ctx.user!.id })),
+      .mutation(async ({ input, ctx }) => {
+        if (input.schoolSection && input.classLevel !== undefined) {
+          validateClassLevel(input.schoolSection, input.classLevel);
+        }
+        return addBook({ ...input, uploadedBy: ctx.user!.id });
+      }),
     deleteBook: teacherOrAdminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -256,7 +343,9 @@ export const appRouter = router({
   }),
 
   calendar: router({
-    getEvents: publicProcedure.query(async () => getCalendarEvents()),
+    getEvents: publicProcedure
+      .input(z.object({ schoolSection: schoolSectionSchema.optional() }).optional())
+      .query(async ({ input }) => getCalendarEvents(input?.schoolSection)),
     addEvent: adminProcedure
       .input(
         z.object({
@@ -265,6 +354,7 @@ export const appRouter = router({
           startDate: z.date(),
           endDate: z.date().optional(),
           eventType: z.string(),
+          schoolSection: schoolSectionSchema.optional(),
         }),
       )
       .mutation(async ({ input, ctx }) =>
@@ -276,7 +366,7 @@ export const appRouter = router({
   }),
 
   notifications: router({
-    getNotifications: protectedProcedure.query(async () => getNotifications()),
+    getNotifications: protectedProcedure.query(async ({ ctx }) => getNotifications(ctx.user!.schoolSection ?? undefined)),
     sendNotification: adminProcedure
       .input(
         z.object({
@@ -284,6 +374,7 @@ export const appRouter = router({
           message: z.string(),
           recipientType: z.enum(["all", "students", "specific"]),
           recipientIds: z.string().optional(),
+          schoolSection: schoolSectionSchema.optional(),
         }),
       )
       .mutation(async ({ input, ctx }) =>

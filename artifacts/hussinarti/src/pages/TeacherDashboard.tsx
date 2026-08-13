@@ -8,8 +8,12 @@ import { Link, useLocation } from "wouter";
 export default function TeacherDashboard() {
   const { user, logout, loading } = useAuth({ redirectOnUnauthenticated: true });
   const [, setLocation] = useLocation();
-  const { data: books, isLoading: booksLoading } = trpc.books.getBooks.useQuery();
-  const { data: events } = trpc.calendar.getEvents.useQuery();
+  const { data: books, isLoading: booksLoading } = trpc.books.getBooks.useQuery(
+    user?.schoolSection ? { schoolSection: user.schoolSection } : undefined,
+  );
+  const { data: events } = trpc.calendar.getEvents.useQuery(
+    user?.schoolSection ? { schoolSection: user.schoolSection } : undefined,
+  );
   const { data: notifications } = trpc.notifications.getNotifications.useQuery();
 
   const handleLogout = async () => { await logout(); setLocation("/"); };

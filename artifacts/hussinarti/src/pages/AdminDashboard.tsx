@@ -14,7 +14,10 @@ export default function AdminDashboard() {
   const { user, logout, loading } = useAuth({ redirectOnUnauthenticated: true });
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<"overview" | "users">("overview");
-  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "student" as string });
+  const [newUser, setNewUser] = useState({
+    name: "", email: "", password: "", role: "student" as string,
+    schoolSection: "primary" as "primary" | "middle", classLevel: 1,
+  });
 
   const { data: results } = trpc.results.getAllResults.useQuery();
   const { data: books } = trpc.books.getBooks.useQuery();
@@ -26,7 +29,11 @@ export default function AdminDashboard() {
   const setRole = trpc.admin.setUserRole.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم تغيير الدور"); } });
   const deleteUser = trpc.admin.deleteUser.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم حذف المستخدم"); setConfirmDeleteUser(null); } });
   const createUser = trpc.admin.createUser.useMutation({
-    onSuccess: () => { refetchUsers(); toast.success("تم إنشاء الحساب"); setNewUser({ name: "", email: "", password: "", role: "student" }); },
+    onSuccess: () => {
+      refetchUsers();
+      toast.success("تم إنشاء الحساب");
+      setNewUser({ name: "", email: "", password: "", role: "student", schoolSection: "primary", classLevel: 1 });
+    },
   });
 
   const handleLogout = async () => { await logout(); setLocation("/login"); };
@@ -137,9 +144,33 @@ export default function AdminDashboard() {
                   <option value="teacher">معلم</option>
                   <option value="admin">مدير</option>
                 </select>
+                {newUser.role === "student" && (
+                  <>
+                    <select value={newUser.schoolSection}
+                      onChange={(e) => setNewUser(p => ({ ...p, schoolSection: e.target.value as "primary" | "middle", classLevel: 1 }))}
+                      className="border rounded-md px-3 py-2 text-sm bg-white">
+                      <option value="primary">الأساسي</option>
+                      <option value="middle">المتوسط</option>
+                    </select>
+                    <select value={newUser.classLevel}
+                      onChange={(e) => setNewUser(p => ({ ...p, classLevel: Number(e.target.value) }))}
+                      className="border rounded-md px-3 py-2 text-sm bg-white">
+                      {Array.from({ length: newUser.schoolSection === "primary" ? 6 : 3 }, (_, index) => (
+                        <option key={index + 1} value={index + 1}>الصف {index + 1}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
               <Button disabled={createUser.isPending || !newUser.name || !newUser.email || !newUser.password}
-                onClick={() => createUser.mutate({ name: newUser.name, email: newUser.email, password: newUser.password, role: newUser.role as any })}>
+                onClick={() => createUser.mutate({
+                  name: newUser.name,
+                  email: newUser.email,
+                  password: newUser.password,
+                  role: newUser.role as any,
+                  schoolSection: newUser.role === "student" ? newUser.schoolSection : undefined,
+                  classLevel: newUser.role === "student" ? newUser.classLevel : undefined,
+                })}>
                 {createUser.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Plus className="w-4 h-4 ml-2" />}
                 إضافة
               </Button>
@@ -155,6 +186,8 @@ export default function AdminDashboard() {
                   <thead><tr className="border-b text-gray-500">
                     <th className="text-right py-2 px-3">الاسم</th>
                     <th className="text-right py-2 px-3">البريد</th>
+                    <th className="text-right py-2 px-3">رقم الطالب</th>
+                    <th className="text-right py-2 px-3">القسم والصف</th>
                     <th className="text-right py-2 px-3">الدور</th>
                     <th className="text-right py-2 px-3">تغيير الدور</th>
                     <th className="py-2 px-3"></th>
@@ -164,6 +197,11 @@ export default function AdminDashboard() {
                       <tr key={u.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-3 font-medium text-gray-800">{u.name ?? "—"}</td>
                         <td className="py-3 px-3 text-gray-500">{u.email ?? "—"}</td>
+                        <td className="py-3 px-3 font-mono text-blue-700">{u.studentNumber ?? "—"}</td>
+                        <td className="py-3 px-3 text-gray-500">
+                          {u.schoolSection === "primary" ? "الأساسي" : u.schoolSection === "middle" ? "المتوسط" : "—"}
+                          {u.classLevel ? ` — الصف ${u.classLevel}` : ""}
+                        </td>
                         <td className="py-3 px-3">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${u.role === "admin" ? "bg-purple-100 text-purple-700" : u.role === "teacher" ? "bg-green-100 text-green-700" : u.role === "student" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
                             {ROLE_LABELS[u.role] ?? u.role}
@@ -173,7 +211,17 @@ export default function AdminDashboard() {
                           {u.id !== user.id && (
                             <select
                               defaultValue={u.role}
-                              onChange={(e) => setRole.mutate({ userId: u.id, role: e.target.value as any })}
+                              onChange={(e) => {
+                                const role = e.target.value as any;
+                                setRole.mutate({
+                                  userId: u.id,
+                                  role,
+                                  ...(role === "student" ? {
+                                    schoolSection: u.schoolSection ?? "primary",
+                                    classLevel: u.classLevel ?? 1,
+                                  } : {}),
+                                });
+                              }}
                               className="border rounded px-2 py-1 text-xs bg-white"
                             >
                               <option value="user">جديد</option>
@@ -206,7 +254,7 @@ export default function AdminDashboard() {
                           )}
                         </td>
                       </tr>
-                    )) ?? <tr><td colSpan={5} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
+                    )) ?? <tr><td colSpan={7} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
                   </tbody>
                 </table>
               </div>

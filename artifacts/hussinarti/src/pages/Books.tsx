@@ -23,7 +23,7 @@ function PdfUploadButton({
   const { uploadFile, isUploading, progress } = useUpload({
     basePath: base ? `${base}/api/storage` : "/api/storage",
     onSuccess: () => {},
-    onError: (err) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +75,9 @@ export default function Books() {
   const canUpload = user?.role === "admin" || user?.role === "teacher";
   const isAdmin = user?.role === "admin";
 
-  const { data: books, isLoading, refetch } = trpc.books.getBooks.useQuery();
+  const { data: books, isLoading, refetch } = trpc.books.getBooks.useQuery(
+    user?.schoolSection ? { schoolSection: user.schoolSection } : undefined,
+  );
   const uploadBook = trpc.books.uploadBook.useMutation({
     onSuccess: () => { refetch(); toast.success("تم إضافة الكتاب"); resetForm(); },
   });
@@ -84,14 +86,15 @@ export default function Books() {
   });
 
   const [form, setForm] = useState({
-    title: "", subject: "", grade: "", fileUrl: "", fileKey: "", description: "",
+    title: "", subject: "", grade: "1", schoolSection: "primary" as "primary" | "middle",
+    classLevel: 1, fileUrl: "", fileKey: "", description: "",
   });
   const [uploadMode, setUploadMode] = useState<"url" | "file">("file");
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const resetForm = () => {
-    setForm({ title: "", subject: "", grade: "", fileUrl: "", fileKey: "", description: "" });
+    setForm({ title: "", subject: "", grade: "1", schoolSection: "primary", classLevel: 1, fileUrl: "", fileKey: "", description: "" });
     setUploadedFileName(null);
     setUploadMode("file");
   };
@@ -140,8 +143,29 @@ export default function Books() {
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
               <Input placeholder="المادة *" value={form.subject}
                 onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} />
-              <Input placeholder="الصف الدراسي *" value={form.grade}
-                onChange={(e) => setForm((p) => ({ ...p, grade: e.target.value }))} />
+              <select
+                value={form.schoolSection}
+                onChange={(e) => {
+                  const section = e.target.value as "primary" | "middle";
+                  setForm((p) => ({ ...p, schoolSection: section, classLevel: 1, grade: "1" }));
+                }}
+                className="border rounded-md px-3 py-2 text-sm bg-white"
+              >
+                <option value="primary">الأساسي</option>
+                <option value="middle">المتوسط</option>
+              </select>
+              <select
+                value={form.classLevel}
+                onChange={(e) => {
+                  const classLevel = Number(e.target.value);
+                  setForm((p) => ({ ...p, classLevel, grade: String(classLevel) }));
+                }}
+                className="border rounded-md px-3 py-2 text-sm bg-white"
+              >
+                {Array.from({ length: form.schoolSection === "primary" ? 6 : 3 }, (_, index) => (
+                  <option key={index + 1} value={index + 1}>الصف {index + 1}</option>
+                ))}
+              </select>
               <Input placeholder="وصف الكتاب (اختياري)" value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
             </div>
@@ -195,7 +219,16 @@ export default function Books() {
 
             <Button
               disabled={uploadBook.isPending || !canSubmit}
-              onClick={() => uploadBook.mutate(form)}
+                onClick={() => uploadBook.mutate({
+                  title: form.title,
+                  subject: form.subject,
+                  grade: form.grade,
+                  schoolSection: form.schoolSection,
+                  classLevel: form.classLevel,
+                  fileUrl: form.fileUrl,
+                  fileKey: form.fileKey,
+                  description: form.description,
+                })}
             >
               {uploadBook.isPending
                 ? <><Loader2 className="w-4 h-4 animate-spin ml-2" /> جاري الحفظ...</>
