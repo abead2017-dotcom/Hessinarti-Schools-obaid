@@ -14,6 +14,7 @@ Full-stack Arabic school management app. Frontend: React+Vite+Wouter+tRPC. Backe
 - `updateUserRole` (self): only `user` → `student`/`teacher` (no admin self-assign)
 - `admin.setUserRole`: admin can change any user's role to anything
 - `admin.createUser`: admin creates users directly
+- Login uses the numeric user ID for staff/admins and the generated `STU-...` student number for students; email remains account metadata.
 
 ## DB Schema
 5 tables: users (has `password` VARCHAR column), results, books, calendarEvents, notifications

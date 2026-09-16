@@ -185,6 +185,7 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead><tr className="border-b text-gray-500">
                     <th className="text-right py-2 px-3">الاسم</th>
+                    <th className="text-right py-2 px-3">ID الدخول</th>
                     <th className="text-right py-2 px-3">البريد</th>
                     <th className="text-right py-2 px-3">رقم الطالب</th>
                     <th className="text-right py-2 px-3">القسم والصف</th>
@@ -196,6 +197,7 @@ export default function AdminDashboard() {
                     {allUsers?.map((u: any) => (
                       <tr key={u.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-3 font-medium text-gray-800">{u.name ?? "—"}</td>
+                        <td className="py-3 px-3 font-mono text-blue-700">{u.studentNumber ?? u.id}</td>
                         <td className="py-3 px-3 text-gray-500">{u.email ?? "—"}</td>
                         <td className="py-3 px-3 font-mono text-blue-700">{u.studentNumber ?? "—"}</td>
                         <td className="py-3 px-3 text-gray-500">

@@ -10,7 +10,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 export default function Login() {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -34,8 +34,8 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
-    loginMutation.mutate({ email, password });
+    if (!identifier || !password) return;
+    loginMutation.mutate({ identifier, password });
   };
 
   if (loading) return (
@@ -59,13 +59,13 @@ export default function Login() {
         <Card className="p-8 shadow-lg border-0">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">البريد الإلكتروني</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">المعرّف (ID)</label>
               <Input
-                type="email"
-                placeholder="example@school.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                type="text"
+                placeholder="مثال: 1 أو STU-000001"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
                 required
                 className="text-right"
               />
@@ -102,7 +102,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full h-11 text-base font-semibold"
-              disabled={loginMutation.isPending || !email || !password}
+              disabled={loginMutation.isPending || !identifier || !password}
             >
               {loginMutation.isPending ? (
                 <><Loader2 className="w-4 h-4 animate-spin ml-2" /> جاري الدخول...</>

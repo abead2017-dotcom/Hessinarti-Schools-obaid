@@ -52,6 +52,7 @@ export default function RoleSelection() {
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">مرحباً {user.name || "بك"}!</h1>
+          <p className="text-sm text-blue-700 mb-2">معرّف الدخول (ID): <span className="font-bold">{user.id}</span></p>
           <p className="text-gray-500">
             {setupRole ? (setupRole === "student" ? "حدد القسم والصف الدراسي" : "حدد القسم الدراسي") : "اختر دورك لتبدأ"}
           </p>

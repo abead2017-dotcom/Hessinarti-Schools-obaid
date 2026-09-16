@@ -20,7 +20,7 @@ import {
 } from "./db.js";
 import { TRPCError } from "@trpc/server";
 import { db, users, books } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { hashPassword, verifyPassword, createSessionToken } from "./auth.js";
 import { randomUUID } from "crypto";
 
@@ -99,21 +99,29 @@ export const appRouter = router({
     login: publicProcedure
       .input(
         z.object({
-          email: z.string().email("بريد إلكتروني غير صحيح"),
+          identifier: z.string().trim().min(1, "أدخل المعرّف (ID)"),
           password: z.string().min(1),
         }),
       )
       .mutation(async ({ input, ctx }) => {
+        const parsedId = /^\d+$/.test(input.identifier) ? Number(input.identifier) : null;
+        const numericId = parsedId !== null && Number.isSafeInteger(parsedId) && parsedId > 0 && parsedId <= 2147483647
+          ? parsedId
+          : null;
         const [user] = await db
           .select()
           .from(users)
-          .where(eq(users.email, input.email))
+          .where(
+            numericId !== null
+              ? or(eq(users.id, numericId), eq(users.studentNumber, input.identifier))
+              : eq(users.studentNumber, input.identifier),
+          )
           .limit(1);
 
         if (!user?.password) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+            message: "المعرّف أو كلمة المرور غير صحيحة",
           });
         }
 
@@ -121,7 +129,7 @@ export const appRouter = router({
         if (!valid) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
-            message: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+            message: "المعرّف أو كلمة المرور غير صحيحة",
           });
         }
 

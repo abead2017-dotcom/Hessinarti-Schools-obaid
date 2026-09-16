@@ -34,6 +34,8 @@ export default function StudentDashboard() {
             <h1 className="text-2xl font-bold">لوحة تحكم الطالب</h1>
             <p className="text-blue-100 mt-1">مرحباً {user.name}</p>
             <p className="text-blue-100 text-sm mt-1">
+              معرّف الدخول: <span className="font-bold">{user.studentNumber ?? user.id}</span>
+              {" · "}
               رقم الطالب: <span className="font-bold">{user.studentNumber ?? "—"}</span>
               {" · "}
               {user.schoolSection === "primary" ? "الأساسي" : user.schoolSection === "middle" ? "المتوسط" : "—"}

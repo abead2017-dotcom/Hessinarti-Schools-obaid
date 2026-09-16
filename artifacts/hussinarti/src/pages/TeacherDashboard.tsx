@@ -31,6 +31,7 @@ export default function TeacherDashboard() {
           <div>
             <h1 className="text-2xl font-bold">لوحة تحكم المعلم</h1>
             <p className="text-green-100 mt-1">مرحباً {user.name}</p>
+            <p className="text-green-100 text-sm mt-1">معرّف الدخول: <span className="font-bold">{user.id}</span></p>
           </div>
           <div className="flex items-center gap-4">
             <span className="bg-green-500 px-3 py-1 rounded-full text-sm">معلم</span>
