@@ -19,6 +19,11 @@ Full-stack Arabic school management app. Frontend: React+Vite+Wouter+tRPC. Backe
 5 tables: users (has `password` VARCHAR column), results, books, calendarEvents, notifications
 2 enums: user_role (user/admin/student/teacher), notification_recipient_type
 
+## Schema Sync
+The Drizzle schema source and the managed databases can drift; verify the live table list before debugging API queries. Apply the development schema with the workspace DB push flow, then use Replit Publish for production.
+**Why:** The API once failed with `relation "users" does not exist` even though `users` was present in the source schema.
+**How to apply:** Treat missing tables as a schema-sync issue first. Never run production DDL manually; production changes belong to Publish.
+
 ## Key Architecture
 - tsconfig in api-server uses `paths` + `include` for @workspace/db (no project references — incompatible with tsx)
 - `@server/*` alias in hussinarti tsconfig resolves api-server types for `import type { AppRouter }` (type-only, stripped by Vite)
