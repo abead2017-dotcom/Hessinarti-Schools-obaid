@@ -1,1 +1,2 @@
 - [Hussinarti Migration](hussinarti-migration.md) — مشروع مدارس عربي منقول من زيب إلى Replit، tRPC + Express 5 + PostgreSQL، معلومات بنية المشروع وقرارات التصميم
+- [Production schema publishing](production-schema-publishing.md) — مخطط قاعدة الإنتاج يتحدث عبر Publish بعد إلغاء التجميد، وليس عبر DDL أو build hooks
