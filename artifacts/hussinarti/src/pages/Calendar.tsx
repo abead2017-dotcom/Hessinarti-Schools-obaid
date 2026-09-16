@@ -24,8 +24,13 @@ export default function Calendar() {
     onSuccess: () => { refetch(); toast.success("تم حذف الفعالية"); setConfirmDelete(null); },
   });
 
-  const [form, setForm] = useState({ title: "", description: "", startDate: "", endDate: "", eventType: "دراسي" });
-  const resetForm = () => setForm({ title: "", description: "", startDate: "", endDate: "", eventType: "دراسي" });
+  const [form, setForm] = useState({
+    title: "", description: "", startDate: "", endDate: "", eventType: "دراسي",
+    schoolSection: "" as "" | "primary" | "middle",
+  });
+  const resetForm = () => setForm({
+    title: "", description: "", startDate: "", endDate: "", eventType: "دراسي", schoolSection: "",
+  });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -56,10 +61,23 @@ export default function Calendar() {
               </select>
               <Input type="datetime-local" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} />
               <Input type="datetime-local" value={form.endDate} onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))} />
+              <select value={form.schoolSection} onChange={(e) => setForm((p) => ({ ...p, schoolSection: e.target.value as "" | "primary" | "middle" }))}
+                className="border rounded-md px-3 py-2 text-sm bg-white text-gray-700">
+                <option value="">لجميع الأقسام</option>
+                <option value="primary">الأساسي</option>
+                <option value="middle">المتوسط</option>
+              </select>
               <Input placeholder="وصف (اختياري)" className="sm:col-span-2" value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} />
             </div>
             <Button disabled={addEvent.isPending || !form.title || !form.startDate}
-              onClick={() => addEvent.mutate({ title: form.title, description: form.description || undefined, startDate: new Date(form.startDate), endDate: form.endDate ? new Date(form.endDate) : undefined, eventType: form.eventType })}>
+              onClick={() => addEvent.mutate({
+                title: form.title,
+                description: form.description || undefined,
+                startDate: new Date(form.startDate),
+                endDate: form.endDate ? new Date(form.endDate) : undefined,
+                eventType: form.eventType,
+                schoolSection: form.schoolSection || undefined,
+              })}>
               {addEvent.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Plus className="w-4 h-4 ml-2" />}
               إضافة
             </Button>

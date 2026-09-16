@@ -12,9 +12,9 @@ const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
 const RequestUploadUrlBody = z.object({
-  name: z.string(),
-  size: z.number(),
-  contentType: z.string(),
+  name: z.string().min(1),
+  size: z.number().int().positive().max(50 * 1024 * 1024),
+  contentType: z.literal("application/pdf"),
 });
 
 /** Resolve the JWT session cookie to a user, returns null if unauthenticated */

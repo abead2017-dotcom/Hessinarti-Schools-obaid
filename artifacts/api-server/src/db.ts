@@ -1,5 +1,5 @@
 import { db, users, results, books, calendarEvents, notifications } from "@workspace/db";
-import { eq, desc, and, or, isNull } from "drizzle-orm";
+import { eq, desc, and, or, isNull, like } from "drizzle-orm";
 import type { InsertUser } from "@workspace/db";
 
 export async function upsertUserRecord(user: InsertUser): Promise<void> {
@@ -74,13 +74,37 @@ export async function addCalendarEvent(event: typeof calendarEvents.$inferInsert
 }
 
 // Notifications
-export async function getNotifications(schoolSection?: "primary" | "middle") {
+export async function getNotifications(
+  schoolSection?: "primary" | "middle",
+  role?: "user" | "admin" | "student" | "teacher",
+  userId?: number,
+) {
+  const filters = [];
+  if (schoolSection) {
+    filters.push(or(eq(notifications.schoolSection, schoolSection), isNull(notifications.schoolSection)));
+  }
+
+  if (role !== "admin" && userId !== undefined) {
+    const idText = String(userId);
+    const specificForUser = and(
+      eq(notifications.recipientType, "specific"),
+      or(
+        eq(notifications.recipientIds, idText),
+        like(notifications.recipientIds, `${idText},%`),
+        like(notifications.recipientIds, `%,${idText}`),
+        like(notifications.recipientIds, `%,${idText},%`),
+      ),
+    );
+    const audience = role === "student"
+      ? or(eq(notifications.recipientType, "all"), eq(notifications.recipientType, "students"), specificForUser)
+      : or(eq(notifications.recipientType, "all"), specificForUser);
+    filters.push(audience);
+  }
+
   return db
     .select()
     .from(notifications)
-    .where(schoolSection
-      ? or(eq(notifications.schoolSection, schoolSection), isNull(notifications.schoolSection))
-      : undefined)
+    .where(filters.length ? and(...filters) : undefined)
     .orderBy(desc(notifications.createdAt));
 }
 

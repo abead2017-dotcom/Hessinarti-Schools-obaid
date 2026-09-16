@@ -20,8 +20,10 @@ export default function Notifications() {
     onSuccess: () => { refetch(); toast.success("تم حذف الإشعار"); setConfirmDelete(null); },
   });
 
-  const [form, setForm] = useState({ title: "", message: "", recipientType: "all" as "all" | "students" | "specific" });
-  const resetForm = () => setForm({ title: "", message: "", recipientType: "all" });
+  const [form, setForm] = useState({
+    title: "", message: "", recipientType: "all" as "all" | "students" | "specific", recipientIds: "",
+  });
+  const resetForm = () => setForm({ title: "", message: "", recipientType: "all", recipientIds: "" });
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -58,8 +60,15 @@ export default function Notifications() {
                 <option value="students">للطلاب فقط</option>
                 <option value="specific">محدد</option>
               </select>
+              {form.recipientType === "specific" && (
+                <Input
+                  placeholder="أرقام المستخدمين مفصولة بفواصل، مثل: 2,5,8"
+                  value={form.recipientIds}
+                  onChange={(e) => setForm((p) => ({ ...p, recipientIds: e.target.value }))}
+                />
+              )}
             </div>
-            <Button disabled={send.isPending || !form.title || !form.message}
+            <Button disabled={send.isPending || !form.title || !form.message || (form.recipientType === "specific" && !form.recipientIds.trim())}
               onClick={() => send.mutate(form)}>
               {send.isPending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <Plus className="w-4 h-4 ml-2" />}
               إرسال

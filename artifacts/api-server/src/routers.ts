@@ -324,7 +324,10 @@ export const appRouter = router({
           title: z.string(),
           subject: z.string(),
           grade: z.string(),
-          fileUrl: z.string().url("رابط غير صحيح"),
+          fileUrl: z.string().min(1).refine(
+            (value) => value.startsWith("/api/storage/objects/") || /^https?:\/\/.+/.test(value),
+            "رابط غير صحيح",
+          ),
           fileKey: z.string(),
           description: z.string().optional(),
           schoolSection: schoolSectionSchema.optional(),
@@ -374,7 +377,9 @@ export const appRouter = router({
   }),
 
   notifications: router({
-    getNotifications: protectedProcedure.query(async ({ ctx }) => getNotifications(ctx.user!.schoolSection ?? undefined)),
+    getNotifications: protectedProcedure.query(async ({ ctx }) =>
+      getNotifications(ctx.user!.schoolSection ?? undefined, ctx.user!.role, ctx.user!.id),
+    ),
     sendNotification: adminProcedure
       .input(
         z.object({
@@ -385,9 +390,19 @@ export const appRouter = router({
           schoolSection: schoolSectionSchema.optional(),
         }),
       )
-      .mutation(async ({ input, ctx }) =>
-        addNotification({ ...input, sentBy: ctx.user!.id }),
-      ),
+      .mutation(async ({ input, ctx }) => {
+        if (input.recipientType === "specific") {
+          const ids = (input.recipientIds ?? "")
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean);
+          if (ids.length === 0 || ids.some((value) => !/^\d+$/.test(value))) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "أدخل أرقام المستخدمين مفصولة بفواصل" });
+          }
+          return addNotification({ ...input, recipientIds: ids.join(","), sentBy: ctx.user!.id });
+        }
+        return addNotification({ ...input, recipientIds: undefined, sentBy: ctx.user!.id });
+      }),
     deleteNotification: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => deleteNotification(input.id)),
