@@ -14,8 +14,9 @@ run = "pnpm --filter @workspace/api-server run dev"
 
 [services.production]
 
+# The release command checks the read-only production schema before bundling.
 [services.production.build]
-args = ["pnpm", "--filter", "@workspace/api-server", "run", "build"]
+args = ["pnpm", "--filter", "@workspace/api-server", "run", "release"]
 
 [services.production.build.env]
 NODE_ENV = "production"

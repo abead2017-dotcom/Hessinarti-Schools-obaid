@@ -94,6 +94,14 @@ export const notifications = pgTable("notifications", {
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
+export const applicationTables = {
+  users,
+  results,
+  books,
+  calendarEvents,
+  notifications,
+} as const;
+
 export const assignments = pgTable("assignments", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),

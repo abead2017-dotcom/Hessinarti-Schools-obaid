@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "export NODE_ENV=development && tsx watch src/index.ts",
     "build": "node ./build.mjs",
+    "release": "pnpm run check-production-schema && pnpm run build",
+    "check-production-schema": "tsx ./src/check-production-schema.ts",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
