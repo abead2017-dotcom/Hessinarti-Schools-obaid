@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { BarChart3, BookOpen, Calendar, Bell, LogOut, Plus, Users, Loader2, Trash2 } from "lucide-react";
+import { BarChart3, BookOpen, Calendar, Bell, LogOut, Plus, Users, Loader2, Trash2, KeyRound } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -26,8 +26,20 @@ export default function AdminDashboard() {
   const { data: allUsers, refetch: refetchUsers } = trpc.admin.getUsers.useQuery(undefined, { enabled: activeTab === "users" });
 
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<number | null>(null);
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPasswordConfirmation, setResetPasswordConfirmation] = useState("");
   const setRole = trpc.admin.setUserRole.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم تغيير الدور"); } });
   const deleteUser = trpc.admin.deleteUser.useMutation({ onSuccess: () => { refetchUsers(); toast.success("تم حذف المستخدم"); setConfirmDeleteUser(null); } });
+  const resetUserPassword = trpc.admin.resetUserPassword.useMutation({
+    onSuccess: () => {
+      toast.success("تم إعادة تعيين كلمة المرور");
+      setResetUserId(null);
+      setResetPassword("");
+      setResetPasswordConfirmation("");
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const createUser = trpc.admin.createUser.useMutation({
     onSuccess: () => {
       refetchUsers();
@@ -191,6 +203,7 @@ export default function AdminDashboard() {
                     <th className="text-right py-2 px-3">القسم والصف</th>
                     <th className="text-right py-2 px-3">الدور</th>
                     <th className="text-right py-2 px-3">تغيير الدور</th>
+                    <th className="text-right py-2 px-3">كلمة المرور</th>
                     <th className="py-2 px-3"></th>
                   </tr></thead>
                   <tbody>
@@ -235,6 +248,78 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3 px-3">
                           {u.id !== user.id && (
+                            resetUserId === u.id ? (
+                              <div className="flex min-w-[260px] flex-col gap-2">
+                                <Input
+                                  type="password"
+                                  placeholder="كلمة المرور الجديدة"
+                                  value={resetPassword}
+                                  onChange={(e) => setResetPassword(e.target.value)}
+                                  autoComplete="new-password"
+                                  className="h-8 text-xs"
+                                />
+                                <Input
+                                  type="password"
+                                  placeholder="تأكيد كلمة المرور"
+                                  value={resetPasswordConfirmation}
+                                  onChange={(e) => setResetPasswordConfirmation(e.target.value)}
+                                  autoComplete="new-password"
+                                  className="h-8 text-xs"
+                                />
+                                {resetPasswordConfirmation && resetPassword !== resetPasswordConfirmation && (
+                                  <p className="text-xs text-red-600">كلمتا المرور غير متطابقتين</p>
+                                )}
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs"
+                                    disabled={
+                                      resetUserPassword.isPending ||
+                                      resetPassword.length < 8 ||
+                                      resetPassword !== resetPasswordConfirmation
+                                    }
+                                    onClick={() => resetUserPassword.mutate({
+                                      userId: u.id,
+                                      newPassword: resetPassword,
+                                    })}
+                                  >
+                                    {resetUserPassword.isPending
+                                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : "حفظ"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs"
+                                    onClick={() => {
+                                      setResetUserId(null);
+                                      setResetPassword("");
+                                      setResetPasswordConfirmation("");
+                                    }}
+                                  >
+                                    إلغاء
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 gap-1 text-xs"
+                                onClick={() => {
+                                  setResetUserId(u.id);
+                                  setResetPassword("");
+                                  setResetPasswordConfirmation("");
+                                }}
+                              >
+                                <KeyRound className="h-3 w-3" />
+                                إعادة تعيين
+                              </Button>
+                            )
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          {u.id !== user.id && (
                             confirmDeleteUser === u.id ? (
                               <div className="flex items-center gap-1">
                                 <button onClick={() => deleteUser.mutate({ userId: u.id })}
@@ -256,7 +341,7 @@ export default function AdminDashboard() {
                           )}
                         </td>
                       </tr>
-                    )) ?? <tr><td colSpan={7} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
+                    )) ?? <tr><td colSpan={9} className="text-center py-8 text-gray-400">جاري التحميل...</td></tr>}
                   </tbody>
                 </table>
               </div>

@@ -242,6 +242,20 @@ export const appRouter = router({
         return { success: true } as const;
       }),
 
+    resetUserPassword: adminProcedure
+      .input(z.object({
+        userId: z.number(),
+        newPassword: z.string().min(8, "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل"),
+      }))
+      .mutation(async ({ input }) => {
+        const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).limit(1);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "المستخدم غير موجود" });
+
+        const hash = await hashPassword(input.newPassword);
+        await db.update(users).set({ password: hash }).where(eq(users.id, input.userId));
+        return { success: true } as const;
+      }),
+
     createUser: adminProcedure
       .input(
         z.object({
