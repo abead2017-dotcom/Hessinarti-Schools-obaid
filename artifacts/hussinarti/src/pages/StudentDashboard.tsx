@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { GraduationCap, BookOpen, Calendar, Bell, LogOut, Loader2, TrendingUp } from "lucide-react";
+import { GraduationCap, BookOpen, Calendar, Bell, LogOut, Loader2, TrendingUp, ClipboardCheck, ClipboardList, Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 export default function StudentDashboard() {
@@ -54,8 +54,8 @@ export default function StudentDashboard() {
 
       <nav className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-end gap-8">
-          {([["نتائجي", "/results", GraduationCap], ["الكتب", "/books", BookOpen], ["التقويم", "/calendar", Calendar], ["الإشعارات", "/notifications", Bell]] as const).map(([label, href]) => (
-            <Link key={href} href={href} className="text-gray-700 hover:text-blue-600 font-medium transition">{label}</Link>
+          {([["نتائجي", "/results", GraduationCap], ["الواجبات", "/assignments", ClipboardList], ["الحضور", "/attendance", ClipboardCheck], ["المراسلات", "/messages", Mail], ["الكتب", "/books", BookOpen], ["التقويم", "/calendar", Calendar], ["الإشعارات", "/notifications", Bell]] as const).map(([label, href, Icon]) => (
+            <Link key={href} href={href} className="text-gray-700 hover:text-blue-600 font-medium transition"><Icon className="inline w-4 h-4 ml-1" />{label}</Link>
           ))}
         </div>
       </nav>

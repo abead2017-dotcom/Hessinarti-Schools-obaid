@@ -3,6 +3,8 @@ import { integer, pgEnum, pgTable, serial, text, timestamp, varchar, unique } fr
 export const userRoleEnum = pgEnum("user_role", ["user", "admin", "student", "teacher"]);
 export const notificationRecipientEnum = pgEnum("notification_recipient_type", ["all", "students", "specific"]);
 export const schoolSectionEnum = pgEnum("school_section", ["primary", "middle"]);
+export const assignmentSubmissionStatusEnum = pgEnum("assignment_submission_status", ["submitted", "graded"]);
+export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "late", "excused"]);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -91,3 +93,80 @@ export const notifications = pgTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+export const assignments = pgTable("assignments", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  schoolSection: schoolSectionEnum("schoolSection").notNull(),
+  classLevel: integer("classLevel").notNull(),
+  dueDate: timestamp("dueDate"),
+  createdBy: integer("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type Assignment = typeof assignments.$inferSelect;
+export type InsertAssignment = typeof assignments.$inferInsert;
+
+export const assignmentSubmissions = pgTable("assignmentSubmissions", {
+  id: serial("id").primaryKey(),
+  assignmentId: integer("assignmentId").notNull(),
+  studentId: integer("studentId").notNull(),
+  content: text("content").notNull(),
+  status: assignmentSubmissionStatusEnum("status").default("submitted").notNull(),
+  score: integer("score"),
+  feedback: text("feedback"),
+  submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+  gradedAt: timestamp("gradedAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  assignmentStudentUnique: unique("assignment_submissions_assignment_student_unique").on(table.assignmentId, table.studentId),
+}));
+
+export type AssignmentSubmission = typeof assignmentSubmissions.$inferSelect;
+export type InsertAssignmentSubmission = typeof assignmentSubmissions.$inferInsert;
+
+export const attendanceSessions = pgTable("attendanceSessions", {
+  id: serial("id").primaryKey(),
+  teacherId: integer("teacherId").notNull(),
+  schoolSection: schoolSectionEnum("schoolSection").notNull(),
+  classLevel: integer("classLevel").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  attendanceDate: timestamp("attendanceDate").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type AttendanceSession = typeof attendanceSessions.$inferSelect;
+export type InsertAttendanceSession = typeof attendanceSessions.$inferInsert;
+
+export const attendanceRecords = pgTable("attendanceRecords", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("sessionId").notNull(),
+  studentId: integer("studentId").notNull(),
+  status: attendanceStatusEnum("status").notNull(),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  sessionStudentUnique: unique("attendance_records_session_student_unique").on(table.sessionId, table.studentId),
+}));
+
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type InsertAttendanceRecord = typeof attendanceRecords.$inferInsert;
+
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("senderId").notNull(),
+  recipientId: integer("recipientId").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;

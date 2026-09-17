@@ -84,7 +84,7 @@ export default function AdminDashboard() {
               {label}
             </button>
           ))}
-          {([["النتائج", "/results"], ["الكتب", "/books"], ["التقويم", "/calendar"], ["الإشعارات", "/notifications"]] as const).map(([label, href]) => (
+          {([["النتائج", "/results"], ["الواجبات", "/assignments"], ["الحضور", "/attendance"], ["المراسلات", "/messages"], ["الكتب", "/books"], ["التقويم", "/calendar"], ["الإشعارات", "/notifications"]] as const).map(([label, href]) => (
             <Link key={href} href={href} className="py-4 text-sm font-medium text-gray-600 hover:text-purple-600 border-b-2 border-transparent transition">{label}</Link>
           ))}
         </div>

@@ -1,0 +1,19 @@
+{
+  "name": "مدارس حسينارتي",
+  "short_name": "حسينارتي",
+  "description": "منصة مدرسية للطلاب والمعلمين والإدارة",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

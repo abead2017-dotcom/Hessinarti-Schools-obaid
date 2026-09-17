@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BookOpen, Calendar, Bell, LogOut, Loader2, Users } from "lucide-react";
+import { BookOpen, Calendar, Bell, LogOut, Loader2, ClipboardCheck, ClipboardList, Mail } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 export default function TeacherDashboard() {
@@ -43,7 +43,10 @@ export default function TeacherDashboard() {
       </header>
 
       <nav className="bg-white border-b shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-end gap-8">
+          <div className="container mx-auto px-4 py-4 flex justify-end gap-8 flex-wrap">
+            <Link href="/assignments" className="text-gray-700 hover:text-green-600 font-medium transition"><ClipboardList className="inline w-4 h-4 ml-1" />الواجبات</Link>
+            <Link href="/attendance" className="text-gray-700 hover:text-green-600 font-medium transition"><ClipboardCheck className="inline w-4 h-4 ml-1" />الحضور</Link>
+            <Link href="/messages" className="text-gray-700 hover:text-green-600 font-medium transition"><Mail className="inline w-4 h-4 ml-1" />المراسلات</Link>
           <Link href="/books" className="text-gray-700 hover:text-green-600 font-medium transition">الكتب</Link>
           <Link href="/calendar" className="text-gray-700 hover:text-green-600 font-medium transition">التقويم</Link>
           <Link href="/notifications" className="text-gray-700 hover:text-green-600 font-medium transition">الإشعارات</Link>

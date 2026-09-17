@@ -10,6 +10,9 @@ import Results from "./pages/Results";
 import Books from "./pages/Books";
 import Calendar from "./pages/Calendar";
 import Notifications from "./pages/Notifications";
+import Assignments from "./pages/Assignments";
+import Attendance from "./pages/Attendance";
+import Messages from "./pages/Messages";
 import RoleSelection from "./pages/RoleSelection";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -30,6 +33,9 @@ function Router() {
       <Route path="/books" component={Books} />
       <Route path="/calendar" component={Calendar} />
       <Route path="/notifications" component={Notifications} />
+      <Route path="/assignments" component={Assignments} />
+      <Route path="/attendance" component={Attendance} />
+      <Route path="/messages" component={Messages} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -17,9 +17,23 @@ import {
   addNotification,
   deleteNotification,
   deleteUser,
+  getAssignmentsForUser,
+  getAssignmentById,
+  getSubmissionsForAssignment,
+  getSubmissionsForStudent,
+  getSubmission,
+  saveAssignmentSubmission,
+  gradeAssignmentSubmission,
+  getStudentsByClass,
+  createAttendanceSession,
+  getAttendanceSessionsForTeacher,
+  getAttendanceForStudent,
+  getMessagingUsers,
+  getMessagesForUser,
+  addMessage,
 } from "./db.js";
 import { TRPCError } from "@trpc/server";
-import { db, users, books } from "@workspace/db";
+import { db, users, books, assignments, assignmentSubmissions } from "@workspace/db";
 import { eq, or } from "drizzle-orm";
 import { hashPassword, verifyPassword, createSessionToken } from "./auth.js";
 import { randomUUID } from "crypto";
@@ -420,6 +434,155 @@ export const appRouter = router({
     deleteNotification: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => deleteNotification(input.id)),
+  }),
+
+  assignments: router({
+    getMine: protectedProcedure.query(async ({ ctx }) =>
+      getAssignmentsForUser({
+        role: ctx.user!.role,
+        userId: ctx.user!.id,
+        schoolSection: ctx.user!.schoolSection,
+        classLevel: ctx.user!.classLevel,
+      }),
+    ),
+    create: teacherOrAdminProcedure
+      .input(z.object({
+        title: z.string().min(2),
+        description: z.string().optional(),
+        subject: z.string().min(2),
+        schoolSection: schoolSectionSchema,
+        classLevel: z.number().int(),
+        dueDate: z.date().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        validateClassLevel(input.schoolSection, input.classLevel);
+        return db.insert(assignments).values({
+          ...input,
+          createdBy: ctx.user!.id,
+        }).returning();
+      }),
+    getSubmissions: teacherOrAdminProcedure
+      .input(z.object({ assignmentId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const assignment = await getAssignmentById(input.assignmentId);
+        if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "الواجب غير موجود" });
+        if (ctx.user!.role !== "admin" && assignment.createdBy !== ctx.user!.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك عرض تسليمات هذا الواجب" });
+        }
+        return getSubmissionsForAssignment(input.assignmentId);
+      }),
+    getMySubmissions: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user!.role !== "student") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "هذه الصفحة مخصصة للطلاب" });
+      }
+      return getSubmissionsForStudent(ctx.user!.id);
+    }),
+    submit: protectedProcedure
+      .input(z.object({
+        assignmentId: z.number(),
+        content: z.string().min(1, "اكتب إجابتك قبل الإرسال"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user!.role !== "student") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "الطلاب فقط يمكنهم تسليم الواجبات" });
+        }
+        const assignment = await getAssignmentById(input.assignmentId);
+        if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "الواجب غير موجود" });
+        if (
+          assignment.schoolSection !== ctx.user!.schoolSection ||
+          assignment.classLevel !== ctx.user!.classLevel
+        ) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "هذا الواجب ليس مخصصًا لصفك" });
+        }
+        if (assignment.dueDate && assignment.dueDate.getTime() < Date.now()) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "انتهى موعد تسليم هذا الواجب" });
+        }
+        return saveAssignmentSubmission({
+          assignmentId: input.assignmentId,
+          studentId: ctx.user!.id,
+          content: input.content,
+        });
+      }),
+    grade: teacherOrAdminProcedure
+      .input(z.object({
+        submissionId: z.number(),
+        score: z.number().int().min(0).max(100),
+        feedback: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [submission] = await db.select().from(assignmentSubmissions)
+          .where(eq(assignmentSubmissions.id, input.submissionId)).limit(1);
+        if (!submission) throw new TRPCError({ code: "NOT_FOUND", message: "التسليم غير موجود" });
+        const assignment = await getAssignmentById(submission.assignmentId);
+        if (!assignment) throw new TRPCError({ code: "NOT_FOUND", message: "الواجب غير موجود" });
+        if (ctx.user!.role !== "admin" && assignment.createdBy !== ctx.user!.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكنك تصحيح هذا التسليم" });
+        }
+        return gradeAssignmentSubmission(input);
+      }),
+  }),
+
+  attendance: router({
+    getStudents: teacherOrAdminProcedure
+      .input(z.object({ schoolSection: schoolSectionSchema, classLevel: z.number().int() }))
+      .query(async ({ input }) => {
+        validateClassLevel(input.schoolSection, input.classLevel);
+        return getStudentsByClass(input.schoolSection, input.classLevel);
+      }),
+    getMyAttendance: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user!.role !== "student") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "هذه الصفحة مخصصة للطلاب" });
+      }
+      return getAttendanceForStudent(ctx.user!.id);
+    }),
+    getTeacherSessions: teacherOrAdminProcedure.query(async ({ ctx }) =>
+      getAttendanceSessionsForTeacher(ctx.user!.id),
+    ),
+    record: teacherOrAdminProcedure
+      .input(z.object({
+        schoolSection: schoolSectionSchema,
+        classLevel: z.number().int(),
+        subject: z.string().min(2),
+        attendanceDate: z.date(),
+        notes: z.string().optional(),
+        records: z.array(z.object({
+          studentId: z.number(),
+          status: z.enum(["present", "absent", "late", "excused"]),
+          note: z.string().optional(),
+        })).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        validateClassLevel(input.schoolSection, input.classLevel);
+        const students = await getStudentsByClass(input.schoolSection, input.classLevel);
+        const studentIds = new Set(students.map((student) => student.id));
+        if (input.records.some((record) => !studentIds.has(record.studentId))) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "يوجد طالب لا ينتمي إلى الصف المحدد" });
+        }
+        return createAttendanceSession({ ...input, teacherId: ctx.user!.id });
+      }),
+  }),
+
+  messages: router({
+    getUsers: protectedProcedure.query(({ ctx }) => getMessagingUsers(ctx.user!.id)),
+    getMine: protectedProcedure.query(({ ctx }) => getMessagesForUser(ctx.user!.id)),
+    send: protectedProcedure
+      .input(z.object({
+        recipientId: z.number(),
+        subject: z.string().min(2),
+        body: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [recipient] = await db.select({ id: users.id, role: users.role })
+          .from(users).where(eq(users.id, input.recipientId)).limit(1);
+        if (!recipient) throw new TRPCError({ code: "NOT_FOUND", message: "المستخدم المستلم غير موجود" });
+        if (recipient.id === ctx.user!.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "لا يمكنك مراسلة نفسك" });
+        }
+        if (ctx.user!.role === "student" && !["teacher", "admin"].includes(recipient.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "يمكن للطالب مراسلة المعلمين والإدارة فقط" });
+        }
+        return addMessage({ ...input, senderId: ctx.user!.id });
+      }),
   }),
 });
 

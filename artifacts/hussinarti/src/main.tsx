@@ -8,6 +8,12 @@ import superjson from "superjson";
 import App from "./App";
 import "./index.css";
 
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register(`${(import.meta.env.BASE_URL as string).replace(/\/$/, "")}/sw.js`);
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 }, mutations: { retry: 0 } },
 });
