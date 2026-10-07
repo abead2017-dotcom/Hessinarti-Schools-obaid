@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "مدارس حسينارتي للجوال"
+description = "تطبيق جوال مرافق لمنصة مدارس حسينارتي، يتيح للطلاب والمعلمين وأولياء الأمور والمديرين الوصول إلى الحسابات والواجبات والنتائج والحضور والمراسلات."
+version = "1.0.0"
+id = "artifacts/hussinarti-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/mobile/" ]
+localPort = 19231
+
+[services.development]
+run = "pnpm --filter @workspace/hussinarti-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hussinarti-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/hussinarti-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "19231"
+BASE_PATH = "/mobile/"

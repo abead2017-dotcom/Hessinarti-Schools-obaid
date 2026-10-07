@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Mobile authentication
 paths:
   /healthz:
     get:
@@ -24,7 +26,118 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /mobile/auth/login:
+    post:
+      operationId: mobileLogin
+      tags: [auth]
+      summary: Sign in to the mobile app
+      description: Verifies school credentials and returns a bearer session token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MobileLoginRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: [string, "null"]
+                      role:
+                        type: string
+                        enum: [admin, teacher, student, parent, user]
+                      studentNumber:
+                        type: [string, "null"]
+                      schoolSection:
+                        anyOf:
+                          - type: string
+                            enum: [primary, middle]
+                          - type: "null"
+                      classLevel:
+                        type: [integer, "null"]
+                    required:
+                      - id
+                      - name
+                      - role
+                      - studentNumber
+                      - schoolSection
+                      - classLevel
+                required:
+                  - token
+                  - user
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /mobile/auth/me:
+    get:
+      operationId: getMobileAuthMe
+      tags: [auth]
+      summary: Get the signed-in mobile user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Signed-in user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: [string, "null"]
+                  role:
+                    type: string
+                    enum: [admin, teacher, student, parent, user]
+                  studentNumber:
+                    type: [string, "null"]
+                  schoolSection:
+                    anyOf:
+                      - type: string
+                        enum: [primary, middle]
+                      - type: "null"
+                  classLevel:
+                    type: [integer, "null"]
+                required:
+                  - id
+                  - name
+                  - role
+                  - studentNumber
+                  - schoolSection
+                  - classLevel
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +146,23 @@ components:
           type: string
       required:
         - status
+    MobileLoginRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+        - identifier
+        - password
+    ApiError:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
 

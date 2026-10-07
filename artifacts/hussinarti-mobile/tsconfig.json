@@ -1,0 +1,26 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@server/*": [
+        "../../artifacts/api-server/src/*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "../../artifacts/api-server/src/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../lib/api-client-react"
+    }
+  ]
+}
