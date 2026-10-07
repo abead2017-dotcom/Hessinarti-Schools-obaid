@@ -16,10 +16,6 @@ Full-stack Arabic school management app. Frontend: React+Vite+Wouter+tRPC. Backe
 - `admin.createUser`: admin creates users directly
 - Login uses the numeric user ID for staff/admins and the generated `STU-...` student number for students; email remains account metadata.
 
-## DB Schema
-5 tables: users (has `password` VARCHAR column), results, books, calendarEvents, notifications
-2 enums: user_role (user/admin/student/teacher), notification_recipient_type
-
 ## Schema Sync
 The Drizzle schema source and the managed databases can drift; verify the live table list before debugging API queries. Apply the development schema with the workspace DB push flow, then use Replit Publish for production.
 **Why:** The API once failed with `relation "users" does not exist` even though `users` was present in the source schema.

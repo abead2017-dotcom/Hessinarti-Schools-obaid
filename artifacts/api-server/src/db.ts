@@ -10,8 +10,9 @@ import {
   attendanceSessions,
   attendanceRecords,
   messages,
+  parentStudentLinks,
 } from "@workspace/db";
-import { eq, desc, and, or, isNull, like, ne } from "drizzle-orm";
+import { eq, desc, and, or, isNull, like, ne, inArray } from "drizzle-orm";
 import type { InsertUser } from "@workspace/db";
 
 export async function upsertUserRecord(user: InsertUser): Promise<void> {
@@ -88,7 +89,7 @@ export async function addCalendarEvent(event: typeof calendarEvents.$inferInsert
 // Notifications
 export async function getNotifications(
   schoolSection?: "primary" | "middle",
-  role?: "user" | "admin" | "student" | "teacher",
+  role?: "user" | "admin" | "student" | "teacher" | "parent",
   userId?: number,
 ) {
   const filters = [];
@@ -303,7 +304,17 @@ export async function getAttendanceForStudent(studentId: number) {
 }
 
 // Internal messages
-export async function getMessagingUsers(excludeUserId: number) {
+export async function getMessagingUsers(
+  excludeUserId: number,
+  role: "admin" | "student" | "teacher" | "user" | "parent",
+) {
+  const recipientFilter = role === "admin"
+    ? undefined
+    : role === "teacher"
+      ? inArray(users.role, ["admin", "student", "teacher", "parent"])
+      : role === "student" || role === "parent"
+        ? inArray(users.role, ["admin", "teacher"])
+        : eq(users.role, "admin");
   return db.select({
     id: users.id,
     name: users.name,
@@ -311,7 +322,9 @@ export async function getMessagingUsers(excludeUserId: number) {
     studentNumber: users.studentNumber,
     schoolSection: users.schoolSection,
     classLevel: users.classLevel,
-  }).from(users).where(ne(users.id, excludeUserId)).orderBy(users.name);
+  }).from(users).where(recipientFilter
+    ? and(ne(users.id, excludeUserId), recipientFilter)
+    : ne(users.id, excludeUserId)).orderBy(users.name);
 }
 
 export async function getMessagesForUser(userId: number) {
@@ -322,4 +335,52 @@ export async function getMessagesForUser(userId: number) {
 
 export async function addMessage(message: typeof messages.$inferInsert) {
   return db.insert(messages).values(message).returning();
+}
+
+// Parent portal access
+export async function getChildrenForParent(parentId: number) {
+  return db.select({
+    id: users.id,
+    name: users.name,
+    studentNumber: users.studentNumber,
+    schoolSection: users.schoolSection,
+    classLevel: users.classLevel,
+  }).from(parentStudentLinks)
+    .innerJoin(users, eq(parentStudentLinks.studentId, users.id))
+    .where(eq(parentStudentLinks.parentId, parentId))
+    .orderBy(users.name);
+}
+
+export async function parentHasStudent(parentId: number, studentId: number) {
+  const [link] = await db.select({ id: parentStudentLinks.id }).from(parentStudentLinks)
+    .where(and(
+      eq(parentStudentLinks.parentId, parentId),
+      eq(parentStudentLinks.studentId, studentId),
+    ))
+    .limit(1);
+  return Boolean(link);
+}
+
+export async function getParentStudentLinks() {
+  return db.select({
+    parentId: parentStudentLinks.parentId,
+    parentName: users.name,
+    studentId: parentStudentLinks.studentId,
+    linkedBy: parentStudentLinks.linkedBy,
+  }).from(parentStudentLinks)
+    .innerJoin(users, eq(parentStudentLinks.parentId, users.id));
+}
+
+export async function replaceParentStudentLinks(parentId: number, studentIds: number[], linkedBy: number) {
+  return db.transaction(async (tx) => {
+    await tx.delete(parentStudentLinks).where(eq(parentStudentLinks.parentId, parentId));
+    if (studentIds.length) {
+      await tx.insert(parentStudentLinks).values(studentIds.map((studentId) => ({
+        parentId,
+        studentId,
+        linkedBy,
+      })));
+    }
+    return { success: true };
+  });
 }

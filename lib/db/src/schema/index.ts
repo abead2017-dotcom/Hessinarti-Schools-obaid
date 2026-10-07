@@ -1,6 +1,6 @@
 import { integer, pgEnum, pgTable, serial, text, timestamp, varchar, unique } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["user", "admin", "student", "teacher"]);
+export const userRoleEnum = pgEnum("user_role", ["user", "admin", "student", "teacher", "parent"]);
 export const notificationRecipientEnum = pgEnum("notification_recipient_type", ["all", "students", "specific"]);
 export const schoolSectionEnum = pgEnum("school_section", ["primary", "middle"]);
 export const assignmentSubmissionStatusEnum = pgEnum("assignment_submission_status", ["submitted", "graded"]);
@@ -94,14 +94,6 @@ export const notifications = pgTable("notifications", {
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
-export const applicationTables = {
-  users,
-  results,
-  books,
-  calendarEvents,
-  notifications,
-} as const;
-
 export const assignments = pgTable("assignments", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -178,3 +170,16 @@ export const messages = pgTable("messages", {
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
+
+export const parentStudentLinks = pgTable("parentStudentLinks", {
+  id: serial("id").primaryKey(),
+  parentId: integer("parentId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  studentId: integer("studentId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  linkedBy: integer("linkedBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  parentStudentUnique: unique("parent_student_links_parent_student_unique").on(table.parentId, table.studentId),
+}));
+
+export type ParentStudentLink = typeof parentStudentLinks.$inferSelect;
+export type InsertParentStudentLink = typeof parentStudentLinks.$inferInsert;

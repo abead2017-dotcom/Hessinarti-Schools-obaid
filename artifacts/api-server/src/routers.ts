@@ -31,10 +31,14 @@ import {
   getMessagingUsers,
   getMessagesForUser,
   addMessage,
+  getChildrenForParent,
+  parentHasStudent,
+  getParentStudentLinks,
+  replaceParentStudentLinks,
 } from "./db.js";
 import { TRPCError } from "@trpc/server";
-import { db, users, books, assignments, assignmentSubmissions } from "@workspace/db";
-import { eq, or } from "drizzle-orm";
+import { db, users, books, assignments, assignmentSubmissions, parentStudentLinks } from "@workspace/db";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { hashPassword, verifyPassword, createSessionToken } from "./auth.js";
 import { randomUUID } from "crypto";
 
@@ -221,10 +225,12 @@ export const appRouter = router({
       return allUsers;
     }),
 
+    getParentStudentLinks: adminProcedure.query(async () => getParentStudentLinks()),
+
     setUserRole: adminProcedure
       .input(z.object({
         userId: z.number(),
-        role: z.enum(["user", "student", "teacher", "admin"]),
+        role: z.enum(["user", "student", "teacher", "admin", "parent"]),
         schoolSection: schoolSectionSchema.optional(),
         classLevel: z.number().int().optional(),
       }))
@@ -235,8 +241,14 @@ export const appRouter = router({
           }
           validateClassLevel(input.schoolSection, input.classLevel);
         }
-        const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).limit(1);
+        const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.userId)).limit(1);
         if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "المستخدم غير موجود" });
+        if (target.role !== input.role) {
+          await db.delete(parentStudentLinks).where(or(
+            eq(parentStudentLinks.parentId, input.userId),
+            eq(parentStudentLinks.studentId, input.userId),
+          ));
+        }
         await db.update(users).set({
           role: input.role,
           schoolSection: input.schoolSection ?? null,
@@ -244,6 +256,31 @@ export const appRouter = router({
           studentNumber: input.role === "student" ? studentNumberForUser(input.userId) : null,
         }).where(eq(users.id, input.userId));
         return { success: true } as const;
+      }),
+
+    setParentStudents: adminProcedure
+      .input(z.object({
+        parentId: z.number(),
+        studentIds: z.array(z.number().int().positive()).max(50),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const [parent] = await db.select({ id: users.id, role: users.role })
+          .from(users).where(eq(users.id, input.parentId)).limit(1);
+        if (!parent || parent.role !== "parent") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "الحساب المحدد ليس حساب ولي أمر" });
+        }
+        const studentIds = [...new Set(input.studentIds)];
+        if (studentIds.length !== input.studentIds.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "تم اختيار الطالب أكثر من مرة" });
+        }
+        if (studentIds.length) {
+          const students = await db.select({ id: users.id }).from(users)
+            .where(and(eq(users.role, "student"), inArray(users.id, studentIds)));
+          if (students.length !== studentIds.length) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "تأكد أن جميع الحسابات المختارة طلاب" });
+          }
+        }
+        return replaceParentStudentLinks(input.parentId, studentIds, ctx.user!.id);
       }),
 
     deleteUser: adminProcedure
@@ -276,7 +313,7 @@ export const appRouter = router({
           name: z.string().min(2),
           email: z.string().email(),
           password: z.string().min(8),
-          role: z.enum(["user", "student", "teacher", "admin"]),
+          role: z.enum(["user", "student", "teacher", "admin", "parent"]),
           schoolSection: schoolSectionSchema.optional(),
           classLevel: z.number().int().optional(),
         }),
@@ -437,14 +474,17 @@ export const appRouter = router({
   }),
 
   assignments: router({
-    getMine: protectedProcedure.query(async ({ ctx }) =>
-      getAssignmentsForUser({
+    getMine: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user!.role === "parent") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "استخدم بوابة ولي الأمر لمتابعة واجبات أبنائك" });
+      }
+      return getAssignmentsForUser({
         role: ctx.user!.role,
         userId: ctx.user!.id,
         schoolSection: ctx.user!.schoolSection,
         classLevel: ctx.user!.classLevel,
-      }),
-    ),
+      });
+    }),
     create: teacherOrAdminProcedure
       .input(z.object({
         title: z.string().min(2),
@@ -563,7 +603,7 @@ export const appRouter = router({
   }),
 
   messages: router({
-    getUsers: protectedProcedure.query(({ ctx }) => getMessagingUsers(ctx.user!.id)),
+    getUsers: protectedProcedure.query(({ ctx }) => getMessagingUsers(ctx.user!.id, ctx.user!.role)),
     getMine: protectedProcedure.query(({ ctx }) => getMessagesForUser(ctx.user!.id)),
     send: protectedProcedure
       .input(z.object({
@@ -578,10 +618,63 @@ export const appRouter = router({
         if (recipient.id === ctx.user!.id) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "لا يمكنك مراسلة نفسك" });
         }
-        if (ctx.user!.role === "student" && !["teacher", "admin"].includes(recipient.role)) {
-          throw new TRPCError({ code: "FORBIDDEN", message: "يمكن للطالب مراسلة المعلمين والإدارة فقط" });
+        if (["student", "parent"].includes(ctx.user!.role) && !["teacher", "admin"].includes(recipient.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "يمكن للطالب وولي الأمر مراسلة المعلمين والإدارة فقط" });
+        }
+        if (ctx.user!.role === "user" && recipient.role !== "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "يمكن للحساب غير المكتمل مراسلة الإدارة فقط" });
+        }
+        if (ctx.user!.role === "teacher" && recipient.role === "user") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "لا يمكن مراسلة حساب غير مكتمل" });
         }
         return addMessage({ ...input, senderId: ctx.user!.id });
+      }),
+  }),
+
+  parents: router({
+    getMyChildren: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user!.role !== "parent") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "هذه الصفحة مخصصة لأولياء الأمور" });
+      }
+      return getChildrenForParent(ctx.user!.id);
+    }),
+    getChildSummary: protectedProcedure
+      .input(z.object({ studentId: z.number().int().positive() }))
+      .query(async ({ input, ctx }) => {
+        if (ctx.user!.role !== "parent") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "هذه الصفحة مخصصة لأولياء الأمور" });
+        }
+        if (!await parentHasStudent(ctx.user!.id, input.studentId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "هذا الطالب غير مرتبط بحسابك" });
+        }
+        const [student] = await db.select({
+          id: users.id,
+          name: users.name,
+          studentNumber: users.studentNumber,
+          schoolSection: users.schoolSection,
+          classLevel: users.classLevel,
+        }).from(users).where(and(eq(users.id, input.studentId), eq(users.role, "student"))).limit(1);
+        if (!student) throw new TRPCError({ code: "NOT_FOUND", message: "الطالب غير موجود" });
+
+        const [results, attendance, childAssignments, submissions] = await Promise.all([
+          getStudentResults(student.id),
+          getAttendanceForStudent(student.id),
+          getAssignmentsForUser({
+            role: "student",
+            userId: student.id,
+            schoolSection: student.schoolSection,
+            classLevel: student.classLevel,
+          }),
+          getSubmissionsForStudent(student.id),
+        ]);
+        const assignmentIds = new Set(childAssignments.map((assignment) => assignment.id));
+        return {
+          student,
+          results,
+          attendance,
+          assignments: childAssignments,
+          submissions: submissions.filter((submission) => assignmentIds.has(submission.assignmentId)),
+        };
       }),
   }),
 });

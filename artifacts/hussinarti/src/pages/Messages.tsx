@@ -33,7 +33,10 @@ export default function Messages() {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   }
 
-  const backPath = user.role === "student" ? "/dashboard/student" : user.role === "admin" ? "/dashboard/admin" : "/dashboard/teacher";
+  const backPath = user.role === "student" ? "/dashboard/student"
+    : user.role === "admin" ? "/dashboard/admin"
+    : user.role === "parent" ? "/dashboard/parent"
+    : "/dashboard/teacher";
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">

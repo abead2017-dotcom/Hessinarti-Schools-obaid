@@ -29,6 +29,7 @@ export default function Register() {
     if (user.role === "admin") setLocation("/dashboard/admin");
     else if (user.role === "teacher") setLocation("/dashboard/teacher");
     else if (user.role === "student") setLocation("/dashboard/student");
+    else if (user.role === "parent") setLocation("/dashboard/parent");
     else setLocation("/role-selection");
   }, [user, loading, setLocation]);
 

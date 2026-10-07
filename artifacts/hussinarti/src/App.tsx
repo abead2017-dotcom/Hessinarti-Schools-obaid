@@ -13,6 +13,7 @@ import Notifications from "./pages/Notifications";
 import Assignments from "./pages/Assignments";
 import Attendance from "./pages/Attendance";
 import Messages from "./pages/Messages";
+import ParentDashboard from "./pages/ParentDashboard";
 import RoleSelection from "./pages/RoleSelection";
 import StudentDashboard from "./pages/StudentDashboard";
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/dashboard/student" component={StudentDashboard} />
       <Route path="/dashboard/teacher" component={TeacherDashboard} />
       <Route path="/dashboard/admin" component={AdminDashboard} />
+      <Route path="/dashboard/parent" component={ParentDashboard} />
       <Route path="/results" component={Results} />
       <Route path="/books" component={Books} />
       <Route path="/calendar" component={Calendar} />

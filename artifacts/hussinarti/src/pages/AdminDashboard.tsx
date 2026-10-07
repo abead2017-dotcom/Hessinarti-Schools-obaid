@@ -8,7 +8,7 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const ROLE_LABELS: Record<string, string> = { user: "جديد", student: "طالب", teacher: "معلم", admin: "مدير" };
+const ROLE_LABELS: Record<string, string> = { user: "جديد", student: "طالب", teacher: "معلم", admin: "مدير", parent: "ولي أمر" };
 
 export default function AdminDashboard() {
   const { user, logout, loading } = useAuth({ redirectOnUnauthenticated: true });
@@ -18,12 +18,14 @@ export default function AdminDashboard() {
     name: "", email: "", password: "", role: "student" as string,
     schoolSection: "primary" as "primary" | "middle", classLevel: 1,
   });
+  const [parentStudentSelections, setParentStudentSelections] = useState<Record<number, number[]>>({});
 
   const { data: results } = trpc.results.getAllResults.useQuery();
   const { data: books } = trpc.books.getBooks.useQuery();
   const { data: events } = trpc.calendar.getEvents.useQuery();
   const { data: notifications } = trpc.notifications.getNotifications.useQuery();
   const { data: allUsers, refetch: refetchUsers } = trpc.admin.getUsers.useQuery(undefined, { enabled: activeTab === "users" });
+  const { data: parentStudentLinks, refetch: refetchParentStudentLinks } = trpc.admin.getParentStudentLinks.useQuery(undefined, { enabled: activeTab === "users" });
 
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<number | null>(null);
   const [resetUserId, setResetUserId] = useState<number | null>(null);
@@ -37,6 +39,13 @@ export default function AdminDashboard() {
       setResetUserId(null);
       setResetPassword("");
       setResetPasswordConfirmation("");
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const saveParentStudents = trpc.admin.setParentStudents.useMutation({
+    onSuccess: () => {
+      refetchParentStudentLinks();
+      toast.success("تم حفظ الطلاب المرتبطين بولي الأمر");
     },
     onError: (error) => toast.error(error.message),
   });
@@ -155,6 +164,7 @@ export default function AdminDashboard() {
                   <option value="student">طالب</option>
                   <option value="teacher">معلم</option>
                   <option value="admin">مدير</option>
+                  <option value="parent">ولي أمر</option>
                 </select>
                 {newUser.role === "student" && (
                   <>
@@ -200,6 +210,7 @@ export default function AdminDashboard() {
                     <th className="text-right py-2 px-3">ID الدخول</th>
                     <th className="text-right py-2 px-3">البريد</th>
                     <th className="text-right py-2 px-3">رقم الطالب</th>
+                    <th className="text-right py-2 px-3">ربط الأبناء</th>
                     <th className="text-right py-2 px-3">القسم والصف</th>
                     <th className="text-right py-2 px-3">الدور</th>
                     <th className="text-right py-2 px-3">تغيير الدور</th>
@@ -213,6 +224,44 @@ export default function AdminDashboard() {
                         <td className="py-3 px-3 font-mono text-blue-700">{u.studentNumber ?? u.id}</td>
                         <td className="py-3 px-3 text-gray-500">{u.email ?? "—"}</td>
                         <td className="py-3 px-3 font-mono text-blue-700">{u.studentNumber ?? "—"}</td>
+                        <td className="py-3 px-3">
+                          {u.role === "parent" ? (
+                            <div className="min-w-[230px] space-y-2">
+                              <select
+                                multiple
+                                value={(parentStudentSelections[u.id] ?? parentStudentLinks
+                                  ?.filter((link) => link.parentId === u.id)
+                                  .map((link) => link.studentId) ?? []).map(String)}
+                                onChange={(e) => setParentStudentSelections((current) => ({
+                                  ...current,
+                                  [u.id]: Array.from(e.currentTarget.selectedOptions, (option) => Number(option.value)),
+                                }))}
+                                aria-label={`الطلاب المرتبطون بولي الأمر ${u.name ?? u.id}`}
+                                className="w-full min-h-20 border rounded px-2 py-1 text-xs bg-white"
+                              >
+                                {(allUsers ?? []).filter((candidate: any) => candidate.role === "student").map((student: any) => (
+                                  <option key={student.id} value={student.id}>
+                                    {student.name ?? "طالب"} · {student.studentNumber ?? student.id}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                disabled={saveParentStudents.isPending}
+                                onClick={() => saveParentStudents.mutate({
+                                  parentId: u.id,
+                                  studentIds: parentStudentSelections[u.id] ?? parentStudentLinks
+                                    ?.filter((link) => link.parentId === u.id)
+                                    .map((link) => link.studentId) ?? [],
+                                })}
+                              >
+                                حفظ الربط
+                              </Button>
+                            </div>
+                          ) : <span className="text-gray-400">—</span>}
+                        </td>
                         <td className="py-3 px-3 text-gray-500">
                           {u.schoolSection === "primary" ? "الأساسي" : u.schoolSection === "middle" ? "المتوسط" : "—"}
                           {u.classLevel ? ` — الصف ${u.classLevel}` : ""}
@@ -243,6 +292,7 @@ export default function AdminDashboard() {
                               <option value="student">طالب</option>
                               <option value="teacher">معلم</option>
                               <option value="admin">مدير</option>
+                              <option value="parent">ولي أمر</option>
                             </select>
                           )}
                         </td>

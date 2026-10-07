@@ -28,7 +28,7 @@ export default function Notifications() {
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
-  const backHref = user?.role === "admin" ? "/dashboard/admin" : user?.role === "teacher" ? "/dashboard/teacher" : "/dashboard/student";
+  const backHref = user?.role === "admin" ? "/dashboard/admin" : user?.role === "teacher" ? "/dashboard/teacher" : user?.role === "parent" ? "/dashboard/parent" : "/dashboard/student";
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">

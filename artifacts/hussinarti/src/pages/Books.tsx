@@ -118,6 +118,7 @@ export default function Books() {
 
   const backHref = user?.role === "admin" ? "/dashboard/admin"
     : user?.role === "teacher" ? "/dashboard/teacher"
+    : user?.role === "parent" ? "/dashboard/parent"
     : "/dashboard/student";
 
   return (
