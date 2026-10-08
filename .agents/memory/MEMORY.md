@@ -1,4 +1,5 @@
 - [Hussinarti Migration](hussinarti-migration.md) — مشروع مدارس عربي منقول من زيب إلى Replit، tRPC + Express 5 + PostgreSQL، معلومات بنية المشروع وقرارات التصميم
 - [Mobile authentication boundary](hussinarti-mobile-auth.md) — يشارك تطبيق الجوال حسابات المدرسة ويستخدم رموزًا آمنة، مع إبقاء صلاحيات البيانات والتحقق من روابط الأبناء على الخادم
+- [Production account provisioning](production-account-provisioning.md) — تسجيل الدخول العام يعتمد على سجلات قاعدة الإنتاج؛ لا تفترض انتقال حسابات التطوير عند النشر
 - [Production schema publishing](production-schema-publishing.md) — مخطط قاعدة الإنتاج يتحدث عبر Publish بعد إلغاء التجميد، وليس عبر DDL أو build hooks
 - [Parent portal access](parent-portal-access.md) — إدارة المدرسة تنشئ حسابات أولياء الأمور وتدير روابط الأبناء؛ بيانات الطالب لا تُعرض إلا بعد التحقق من الرابط في الخادم
