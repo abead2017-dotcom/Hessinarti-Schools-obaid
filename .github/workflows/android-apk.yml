@@ -1,0 +1,67 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_DOMAIN: ${{ vars.EXPO_PUBLIC_DOMAIN || 'hussinarti-source-deploy--abead2017.replit.app' }}
+
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check production API host
+        shell: bash
+        run: |
+          if [[ -z "$EXPO_PUBLIC_DOMAIN" || "$EXPO_PUBLIC_DOMAIN" == *"://"* || "$EXPO_PUBLIC_DOMAIN" == *"/"* ]]; then
+            echo "::error::EXPO_PUBLIC_DOMAIN must be a hostname only, without https:// or a path."
+            exit 1
+          fi
+
+      - name: Generate Android project
+        run: pnpm --filter @workspace/hussinarti-mobile exec expo prebuild --platform android --no-install
+
+      - name: Build installable APK
+        working-directory: artifacts/hussinarti-mobile/android
+        run: bash ./gradlew --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hussinarti-android-apk
+          path: artifacts/hussinarti-mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
