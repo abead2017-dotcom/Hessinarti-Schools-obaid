@@ -19,7 +19,7 @@ import { useSession } from "@/context/SessionContext";
 
 export default function LoginScreen() {
   const colors = useColors();
-  const { user, ready, completeLogin } = useSession();
+  const { user, ready, restoreError, restoring, retryRestore, completeLogin } = useSession();
   const login = useMobileLogin();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -56,12 +56,33 @@ export default function LoginScreen() {
     return (
       <Page withTabs={false} contentStyle={styles.loadingContent}>
         <Feather name="loader" size={25} color={colors.primary} />
+        <AppText muted>جارٍ التحقق من الجلسة…</AppText>
       </Page>
     );
   }
 
   return (
     <Page withTabs={false} contentStyle={styles.pageContent}>
+      {restoreError ? (
+        <Card style={[styles.restoreNotice, { borderColor: colors.destructiveSoft }]}>
+          <View style={styles.restoreNoticeText}>
+            <AppText style={styles.restoreNoticeTitle}>تعذّر استعادة الجلسة</AppText>
+            <AppText muted style={styles.restoreNoticeDetail}>
+              قد يكون الاتصال بالإنترنت غير متاح. احتفظنا ببيانات جلستك؛ أعد المحاولة أو سجّل الدخول أدناه.
+            </AppText>
+          </View>
+          <AppButton
+            disabled={restoring}
+            icon="refresh-cw"
+            loading={restoring}
+            onPress={retryRestore}
+            title="إعادة المحاولة"
+            variant="outline"
+            testID="retry-session-restore"
+          />
+        </Card>
+      ) : null}
+
       <LinearGradient
         colors={[colors.primary, colors.primaryDeep]}
         style={styles.hero}
@@ -196,7 +217,11 @@ function LoginFormContainer({
 
 const styles = StyleSheet.create({
   pageContent: { gap: 18, paddingBottom: 30 },
-  loadingContent: { alignItems: "center", justifyContent: "center" },
+  loadingContent: { alignItems: "center", justifyContent: "center", gap: 10 },
+  restoreNotice: { gap: 12 },
+  restoreNoticeText: { gap: 4 },
+  restoreNoticeTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, lineHeight: 23 },
+  restoreNoticeDetail: { fontSize: 12, lineHeight: 19 },
   hero: {
     borderRadius: 22,
     alignItems: "center",
