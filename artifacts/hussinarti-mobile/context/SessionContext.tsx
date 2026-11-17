@@ -32,18 +32,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      if (mounted) setReady(true);
+    }, 8_000);
 
     async function restoreSession() {
       try {
         const token = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
         if (token) {
-          const profile = await getMobileAuthMe();
+          const profile = await getMobileAuthMe({ signal: controller.signal });
           if (mounted) setUser(profile);
         }
-      } catch {
-        await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => undefined);
+      } catch (error) {
+        // Clear only invalid sessions; preserve the token during network outages.
+        if ((error as { status?: number }).status === 401) {
+          await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => undefined);
+        }
         if (mounted) setUser(null);
       } finally {
+        clearTimeout(timeoutId);
         if (mounted) setReady(true);
       }
     }
@@ -51,6 +60,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     void restoreSession();
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
