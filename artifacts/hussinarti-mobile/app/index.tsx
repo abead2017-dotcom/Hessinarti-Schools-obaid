@@ -162,6 +162,12 @@ export default function LoginScreen() {
             title="دخول"
             testID="login-submit"
           />
+          <AppButton
+            onPress={() => router.push("/register")}
+            title="تسجيل طالب جديد"
+            variant="outline"
+            testID="student-register"
+          />
           <AppText muted style={styles.supportText}>
             إذا تعذر الدخول، تواصل مع إدارة المدرسة لتأكيد بيانات حسابك.
           </AppText>
